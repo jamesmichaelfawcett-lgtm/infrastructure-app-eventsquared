@@ -1,0 +1,418 @@
+/* by JSR <jsr@pixmob.com> */
+
+/* Extra small devices (phones, 600px and down) */
+/* @media only screen and (max-width: 600px) {...} */
+
+/* Small devices (portrait tablets and large phones, 600px and up) */
+/* @media only screen and (min-width: 600px) {...} */
+
+/* Medium devices (landscape tablets, 768px and up) */
+/* @media only screen and (min-width: 768px) {...} */
+
+/* Large devices (laptops/desktops, 992px and up) */
+/* @media only screen and (min-width: 992px) {...} */
+
+/* Extra large devices (large laptops and desktops, 1200px and up) */
+/* @media only screen and (min-width: 1200px) {...} */
+
+
+@media only screen and (max-width: 600px) {
+    #klik_toolbar_menu {
+        font-size: 12;
+        width: 150;
+        left: calc(50% - 75px);
+    }
+}
+
+@media only screen and (max-width: 450px) {
+    #klik_toolbar_menu {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 300px) {
+    #klik_toolbar_icon_refresh {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 280px) {
+    #klik_toolbar_icon_right {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 240px) {
+    #klik_toolbar_icon_home {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 200px) {
+    #klik_toolbar_icon_logo {
+        display: none;
+    }
+}
+
+@keyframes pulse_opacity {
+    0% {
+        opacity: 1.0;
+    }
+    50% {
+        opacity: 0.3;
+    }
+    100% {
+        opacity: 1.0;
+    }
+}
+
+
+#klik_webif {
+    margin-top:50;
+}
+
+#klik_search {
+    width: calc(100%);
+    height: 40;
+    position: fixed;
+    left:0;
+    z-index: 99999;
+    padding-left: 0;
+    margin:0px;
+    font-size: 18;
+    background-color: #123;
+    border: none;
+    border-bottom: 2px solid #bbb;
+    color: white;
+    top: 50;
+}
+
+#klik_search.no_toolbar {
+    top: 0;
+}
+
+#klik_search.ios {
+    top: 65;
+}
+
+#klik_search.ios.no_toolbar {
+    top: 16;
+}
+
+
+/* klik toolbar */
+
+#klik_toolbar_settings.ios {
+    top: 65;
+    height: calc(1000px - 65px);
+}
+
+#klik_toolbar_settings {
+    box-sizing: border-box;
+    width: 270;
+    height: 1200;
+    text-align: left;
+    opacity: 1.0;
+    border-left: 5px solid black;
+    border-bottom: 5px solid black;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: absolute;
+    right : 0;
+    top: 50;
+    bottom: 0;
+    background-color: #123;
+    z-index: 9999;
+    padding: 0px;
+    font-size: 16px;
+    font-family: var(--font_family);
+}
+
+
+#klik_toolbar_settings.important {
+    background-color: red;
+}
+
+#klik_toolbar_settings .klik_cb {
+    padding-top: 8;
+    overflow: hidden;
+    width: 200;
+    font-size: 16px;
+}
+
+#klik_toolbar_settings .klik_line {
+    border-bottom: 2px solid var(--color_middle);
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+#klik_toolbar_settings input[type=checkbox] {
+    outline: none;
+    width: 20;
+    height: 20;
+    font-size: 12px;
+    color: #fff;
+
+    background-color: var(--color_middle);
+    vertical-align: middle;
+    margin-top: -1px;
+    margin-right: 10px;
+    border-radius: 10%;
+}
+
+#klik_toolbar_settings input[type=checkbox]:hover {
+    opacity: 0.6;
+    border: 1px solid white;
+    cursor: pointer;
+}
+
+#klik_toolbar_settings input[type=checkbox]:checked {
+    background-color: var(--color_main);
+}
+
+
+
+/* toolbar icons */
+
+.klik_toolbar_icon {
+    cursor: pointer;
+    width: 25;
+    padding: 4;
+    border-radius: 50%;
+    border : 3px solid #123;
+    background-color: #345;
+    position: absolute;
+}
+
+.klik_toolbar_icon:hover {
+    background-color: #00ffb9;
+    opacity : 1.0;
+}
+
+.klik_toolbar_icon:active {
+    opacity: 0.7;
+}
+
+.klik_toolbar_icon.ios {
+    top: 20;
+}
+
+.klik_toolbar_icon.on {
+    /*pointer-events: none;*/
+    background-color: #00ffb9;
+}
+
+.klik_toolbar_icon.off {
+    /*pointer-events: none;*/
+    background-color: #ff0000;
+    animation-name: pulse_opacity;
+    animation-duration: 0.5s;
+    animation-iteration-count: infinite;
+}
+
+.klik_toolbar_icon.logo {
+    border: none;
+    border-radius: 0;
+    background: none;
+    left: 5;
+    /*left: 48;*/
+}
+
+.klik_toolbar_icon.klik {
+    content: url('img/logo-klik-white.png');
+    width: 80px;
+    top:12;
+}
+
+.klik_toolbar_icon.klik.ios {
+    top:24;
+}
+
+.klik_toolbar_icon.pixmob {
+    content: url('img/logo-pixmob-white.png');
+    width: 130px;
+    top:12;
+}
+
+.klik_toolbar_icon.pixmob.ios {
+    top:26;
+}
+
+.klik_toolbar_icon.list {
+    content: url('img/outline/list.png');
+    right: 185;
+    border-radius: 10%;
+}
+
+.klik_toolbar_icon.grid {
+    content: url('img/outline/grid.png');
+    right: 140;
+    border-radius: 10%;
+}
+
+.klik_toolbar_icon.network {
+    content: url('img/outline/network.png');
+    right: 95;
+}
+
+.klik_toolbar_icon.bluetooth {
+    content: url('img/outline/bluetooth.png');
+    right: 50;
+}
+
+.klik_toolbar_icon.config  {
+    content: url('img/outline/config.png');
+    right: 5;
+}
+
+.klik_toolbar_icon.left {
+    content: url('img/outline/left.png');
+    position: absolute;
+    left: 5;
+}
+
+.klik_toolbar_icon.home {
+    content: url('img/outline/home.png');
+    position: absolute;
+    left: 50;
+}
+
+.klik_toolbar_icon.right {
+    content: url('img/outline/right.png');
+    position: absolute;
+    left: 95;
+}
+
+.klik_toolbar_icon.refresh {
+    content: url('img/outline/refresh.png');
+    position: absolute;
+    left: 50;
+    display:block;
+}
+
+.klik_toolbar_icon.refresh.sidebar {
+    position: relative;
+    left: 200;
+    top: -27;
+    width: 30;
+    border: 1px solid #000;
+    border-radius: 50%;
+}
+
+
+/* klik_ui_number */
+
+input[type=number] {
+    width: 50;
+    height: 40;
+    background-color: #456;
+    border: none;
+    color: white;
+    padding-left: 5;
+    margin-right: 4;
+    text-align: right;
+    vertical-align: top;
+}
+
+
+/* klik_ui_slider */
+
+input[type=range] {
+    -webkit-appearance: none;
+    height: 40;
+    width: 100%;
+    background-color: #456;
+    margin: 0;
+    margin-top: 4;
+    vertical-align: top;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 28px;
+    background: #234;
+    border: none;
+    /*border-radius: 10px;*/
+    /*padding-top: 4px;*/
+    margin-left: 6px;
+    margin-right: 6px;
+    cursor: pointer;
+}
+
+input[type=range]:focus::-webkit-slider-runnable-track {
+    /*background: red;*/
+    /*border: 1px solid red;*/
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    border: none;
+    height: 28;
+    width: 28;
+    border-radius: 10%;
+    background: #00ffb9;
+    margin-top: 0;
+}
+
+input[type=range]:focus  {
+    outline: none;
+}
+
+
+/* toolbar menu */
+
+.klik_toolbar_menu {
+    box-sizing: border-box;
+    font-size: 18;
+    margin: 0;
+    padding: 0;
+    -webkit-appearance:none; 
+    -webkit-border-radius:0; 
+    background: none;
+    border-radius: 0px;
+    color: #00ffb9;
+    outline: none;
+    width: 250;
+    left: calc(50% - 120px);
+    height: 50;
+    top: 0;
+    position:absolute;
+    border:none;
+    text-align: center;
+}
+
+.klik_toolbar_menu:hover {
+    opacity: 0.7;
+    cursor: pointer;
+}
+
+.klik_toolbar_menu.ios {
+    top : 13;
+}
+
+
+/* debug console */
+
+#klik_debug_console {
+    box-sizing: border-box;
+    width:100%;
+    padding: 2;
+    text-align: left;
+    color: white;
+    font-family: monospace;
+}
+
+.klik_console_line {
+    position: fixed;
+    bottom:0;
+    left:0;
+    height:20px;
+    border-top: 0px solid #123;
+    background-color: #000; 
+    z-index:99999;
+}
+
+.klik_console_page {
+    height:100%;
+    z-index:99999;
+}

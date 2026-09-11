@@ -1,0 +1,131 @@
+/* by JSR <jsr@pixmob.com> */
+
+.dmx_channel {
+    width : 80;
+    text-align : center;
+    display : inline-block;
+    padding : 0;
+    margin: 0;
+    margin-right : 5;
+    margin-top : 5;
+    margin-bottom : 5;
+    /*background-color : red;*/
+    /*border : 1px solid yellow;*/
+    outline : none;
+}
+
+label.dmx_offset   {
+    height: 36;
+    padding: 0;
+    margin: 0;
+    line-height: 1.8;
+    background-color: #345;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+input[type='range'].dmx_slider   {
+    height: 80;
+    width: 255;
+    margin-top: 88;
+    margin-left: -88;
+    transform: rotate(270deg);
+    padding: 0;
+    /*outline: 1px solid #456;*/
+    background-color: #345;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+input[type='number'].dmx_number::-webkit-outer-spin-button ,
+input[type='number'].dmx_number::-webkit-inner-spin-button  {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type='number'].dmx_number { 
+    width: 100%;
+    height: 30;
+    background: #234;
+    color: #fff;
+    text-align: center;
+    border: none;
+    font-size: 20px;
+    margin: 0;
+    padding: 0;
+    outline: none;
+    /*outline: 1px solid #456;*/
+}
+
+input[type='number'].dmx_number:hover { 
+    /*border: 1px solid red;*/
+}
+
+input[type='text'].dmx_label { 
+    width: 100%;
+    height: 30;
+    background: #234;
+    color: #fff;
+    text-align: center;
+    border: none;
+    font-siz: 14px;
+    margin: 0;
+    padding: 10;
+    outline: none;
+    /*outline: 1px solid #456;*/
+}
+
+input[type='text'].dmx_label:hover { 
+    /*border : 1px solid red;*/
+}
+
+
+
+/* used for the controllers */
+
+.dmx_left { 
+    box-sizing: border-box;
+    width: 50%;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.dmx_right { 
+    box-sizing: border-box;
+    width: 50%;
+    display: inline-block;
+    vertical-align: top;
+    margin-left: -1px;
+}
+
+.dmx_button { 
+    box-sizing: border-box;
+    outline: none;
+    width: 100%;
+    background: #234;
+    color: #fff;
+    text-align: left;
+    border: 1px solid black;
+    padding: 10px;
+    margin-top: -1;
+    margin-right: 1;
+    font-size: 20px;
+    height: 48px;
+}
+
+.dmx_button:active { 
+    background: #456;
+}
+
+.dmx_button:down { 
+    background: #456;
+}
+
+.dmx_button:hover { 
+    background: #123;
+}
+
+.dmx_button:focus { 
+    background: #456;
+}
+

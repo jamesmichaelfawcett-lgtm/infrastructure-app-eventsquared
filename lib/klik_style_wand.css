@@ -1,0 +1,44 @@
+/* by JSR <jsr@pixmob.com */
+
+
+.nav.klik_wand_cb_label {
+    /*background-color:#f00;*/
+    display:inline-block;
+    width :auto;
+    height:35;
+    font-family: courier;
+    font-size: 13;
+    vertical-align:top;
+    text-align:center;
+    /*padding:auto;*/
+    /*padding-top : 10px;*/
+    /*padding-bottom : 10px;*/
+    margin : 4px;
+    margin-right:1px;
+    margin-left:1px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+
+.klik_wand_cb_input  {
+    display:block;
+    outline: none;
+    width : 100%;
+    min-width: 22;
+    height: 22;
+    border : 1px solid black;
+    border-radius: 50px;
+}
+
+
+.klik_wand_cb_input:hover {
+    opacity: 0.6;
+    border : 1px solid white;
+    cursor: pointer;
+}
+
+
+.klik_wand_cb_input:checked {
+    background-color:#0fc;
+}

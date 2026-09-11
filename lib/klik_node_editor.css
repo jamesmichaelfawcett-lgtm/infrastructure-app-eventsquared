@@ -1,0 +1,133 @@
+
+/*https://www.sitepoint.com/css3-cursor-styles/*/
+
+body.grid {
+    background: url(./img/bg_grid.png);
+    background-color: #012;
+}
+
+
+svg {
+    position: absolute;
+    z-index: -2; 
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+input {
+    margin: 5;
+    border: none;
+    background-color: #345;
+    color: white;
+    text-align: center;
+    width: calc(100% - 10px);
+}
+
+input:active {
+    color: red;
+}
+
+input.int {
+
+}
+
+input.float {
+
+}
+
+input.text {
+
+}
+
+
+.NodeContainer {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none; 
+    position: absolute;
+    background-color: #234;
+    display: inline-block;
+    border-radius: 5px;
+    box-shadow: 0px 5px 10px #000000;
+    cursor: default;
+    font-family : Arial;
+    /*cursor: -webkit-grab;*/
+    /*cursor: -moz-grab;*/
+}
+
+.NodeContainer:active {
+    /*cursor: -webkit-grabbing;*/
+    /*cursor: -moz-grabbing;*/
+}
+
+.NodeContainer header {
+    display: block;
+    background-color: #123; 
+    color: #00ffb9;
+    border-radius: 5px 5px 0px 0px;
+	text-align: center;
+    padding: 6 12; 
+    /*border: 1px solid white;*/
+}
+
+.NodeContainer ul {
+    margin: 0; 
+    padding: 0;
+    list-style:none; 
+}
+
+.NodeContainer ul li { 
+    position: relative;
+    margin-top: 3;
+    margin-bottom: 3;
+    border-bottom: 1px solid #345;
+}
+
+.NodeContainer ul li span {
+    padding-left: 10;
+    padding-right: 10;
+    color: white;
+}
+
+.NodeContainer ul li span:hover {
+    cursor:pointer;
+    color: #00ffb9;
+}
+
+.NodeContainer ul li span:active {
+    opacity:0.7;
+}
+
+.NodeContainer ul li i{ 
+    position:absolute;
+    width: 10;
+    height: 10;
+    background-color: gray;
+    border-radius: 50%;
+    cursor: crosshair;
+}
+
+.NodeContainer ul li i:hover{
+    /* sum of both needs to be 5 */
+    border: 3px solid red;
+    padding: 2px;
+} 
+
+.NodeContainer ul li.Input  { text-align:left; }
+.NodeContainer ul li.Output { text-align:right; }
+
+.NodeContainer ul li.Input  i { top: 5; left: -5;  }
+.NodeContainer ul li.Output i { top: 5; right: -5; }
+
+.NodeContainer ul li.Input  i:hover { top: 0; left: -10;  }
+.NodeContainer ul li.Output i:hover { top: 0; right: -10; }
+
+.NodeContainer ul li.Active i {
+    background-color:#00ffb9;
+    /*opacity: 0.5;*/
+}   
+
+
