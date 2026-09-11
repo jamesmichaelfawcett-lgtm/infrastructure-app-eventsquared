@@ -1,0 +1,655 @@
+<!-- by JSR <jsr@pixmob.com -->
+<html>
+<head>
+<meta charset='utf-8'>
+<link rel='stylesheet' href='../../lib/klik_app.css' >
+<script type='text/javascript' src='../../lib/klik_app.js'></script>
+<script type='text/javascript'>
+
+var num_sections = 14;
+var tab_selected = null;
+var allow_pairing = false;
+
+var text = {
+    maps            : 'Maps',
+    bridges         : 'Bridges',
+    locations       : 'Locations',
+    attendees       : 'Attendees',
+    infrastructures : 'Infrastructures',
+    config          : 'Event config',
+    live_stats      : 'Live stats',
+    zone_stats      : 'Zone stats',
+    bridges_stream  : 'Bridges stream',
+    events_stream   : 'Events stream',
+    save            : 'Save to file', 
+    load            : 'Load from file', 
+}
+
+var tab_visibilities =  {
+    maps           : 1,
+    bridges        : 1,
+    infrastructures: 1,
+    locations      : 1,
+    attendees      : 1,  
+    config         : 1,
+    live_stats     : 1,
+    zone_stats     : 1,
+    bridges_stream : 1,
+    events_stream  : 1,
+}
+
+var streams = {
+    bridges_stream  : {}, 
+    events_stream   : {}
+}
+
+var key_map = {
+    bridges         : 'addr', 
+    locations       : 'name', 
+    attendees       : 'id', 
+    infrastructures : 'id',
+    maps            : 'id', 
+    events          : 'content_id',
+}
+
+
+var table_string = '';
+var line_count = 0;
+var last_row = ''
+var attendees_by_device = {}
+
+
+window.onload = function() {
+    app = new KlikApp('tech', 'Infrastructure Explorer', 'klik', true, true);
+
+    while (app.navigation.length<num_sections) {
+        app.navigation.push({ title: null, style:'display:none;'});
+    }
+
+    var i = 0;
+    app.navigation[i++] = {
+        title: null, 
+        content: [ 
+            { _t:'tab', _g:0, _i:'button_maps'              , _l: text.maps },
+            { _t:'tab', _g:0, _i:'button_bridges'           , _l: text.bridges },
+            { _t:'tab', _g:0, _i:'button_locations'         , _l: text.locations },
+            { _t:'tab', _g:0, _i:'button_attendees'         , _l: text.attendees },
+            { _t:'tab', _g:0, _i:'button_infrastructures'   , _l: text.infrastructures },
+            { _t:'tab', _g:0, _i:'button_config'            , _l: text.config },
+            { _t:'tab', _g:0, _i:'button_live_stats'        , _l: text.live_stats },
+            { _t:'tab', _g:0, _i:'button_zone_stats'        , _l: text.zone_stats },
+            { _t:'tab', _g:0, _i:'button_bridges_stream'    , _l: text.bridges_stream },
+            { _t:'tab', _g:0, _i:'button_events_stream'     , _l: text.events_stream },
+            { _t:'tab', _g:0, _i:'button_save'              , _l: text.save },
+            { _t:'tab', _g:0, _i:'button_load'              , _l: text.load },
+        ]
+    }
+
+    app.navigation[i++] = { 
+        title: 'Filters', 
+        id: 'filters',
+        style: 'display:none;',
+        content: [ 
+            { _t:'textarea', _i:'filter_textarea', _s:'height:36;', oninput:'set_filter(event)' },
+            
+            { _t:'tab', _g:1, _i:'filter_button_all'    , _l:'all'      },
+            { _t:'tab', _g:1, _i:'filter_button_tags'   , _l:'tags'     },
+            { _t:'tab', _g:1, _i:'filter_button_pixels' , _l:'pixels'   },
+            { _t:'tab', _g:1, _i:'filter_button_beacons', _l:'beacons'  },
+            { _t:'tab', _g:1, _i:'filter_button_hubs'   , _l:'hubs'     },
+            { _t:'tab', _g:1, _i:'filter_button_configs', _l:'configs'  },
+            { _t:'tab', _g:1, _i:'filter_button_custom1', _l:'custom 1' },
+            { _t:'tab', _g:1, _i:'filter_button_custom2', _l:'custom 2' },
+        ]
+    }
+
+    app.navigation[i++].id = 'maps';
+    app.navigation[i++].id = 'bridges';
+    app.navigation[i++].id = 'locations';
+    app.navigation[i++].id = 'attendees';
+    app.navigation[i++].id = 'infrastructures';
+    app.navigation[i++].id = 'config';
+    app.navigation[i++].id = 'live_stats';
+    app.navigation[i++].id = 'zone_stats';
+    app.navigation[i++].id = 'bridges_stream';
+    app.navigation[i++].id = 'events_stream';
+    app.navigation[i++].id = 'save';
+    app.navigation[i++].id = 'load';
+
+    function select_tab(name, with_filters=true) {
+        tab_selected = name;
+        reset(with_filters);
+        show(by_id('section_'+name));
+        section_filters_title.innerHTML = 'Filters : ';
+        filter_textarea.value = '';
+    }
+
+    app.handlers = {
+
+        // sections
+
+        button_maps : function() {
+            select_tab('maps');
+        },
+        button_bridges : function() {
+            select_tab('bridges');
+        },
+        button_locations : function() {
+            select_tab('locations');
+        },
+        button_attendees : function() {
+            select_tab('attendees');
+        },
+        button_infrastructures : function() {
+            select_tab('infrastructures');
+            show_predefined_filters();
+        },
+        button_config : function() {
+            select_tab('config');
+        },
+        button_live_stats : function() {
+            select_tab('live_stats');
+        },
+        button_zone_stats : function() {
+            select_tab('zone_stats');
+        },
+        button_bridges_stream : function() {
+            select_tab('bridges_stream');
+        },
+        button_events_stream : function() {
+            select_tab('events_stream');
+        },
+
+        // save to file
+        button_save : function() {
+            select_tab('save', false);
+
+            var filename = app.api.env+'_'+app.api.event+'_'+(new Date()).YYMMDD_hhmmss()+'.json';
+            klik_save_text(JSON.stringify(klik_data,null,2), filename, function() {
+                section_save.innerHTML = 'Data saved to <span style="color:#00ffB9;">'+filename+'<span>';
+            });
+        },
+
+        // load from file
+        button_load : function() {
+            select_tab('load', false);
+
+            section_load.innerHTML = '<input type="file" id="file_input" onchange="klik_load_file(event)"></input>'
+        },
+
+
+        filter_textarea : function() {
+            // ignore textarea
+        },
+        filter_button_all : function() {
+            apply_filter('');
+        },
+        filter_button_tags : function() {
+            apply_filter('type=tag');
+        },
+        filter_button_pixels : function() {
+            apply_filter('type=pixel');
+        },
+        filter_button_beacons : function() {
+            apply_filter('type=beacon');
+        },
+        filter_button_hubs : function() {
+            apply_filter('type=hub');
+        },
+        filter_button_sentinelles : function() {
+            apply_filter('type=sentinelle');
+        },
+        filter_button_configs : function() {
+            apply_filter('type=config');
+        },
+        filter_button_custom1 : function() {
+            apply_filter('type=beacon, type=tag');
+        },
+        filter_button_custom2 : function() {
+            apply_filter('type=pixel, type=config');
+        },
+        filter_button : function() {
+        
+            if (tab_selected=='config' || 
+                tab_selected=='live_stats' || 
+                tab_selected=='zone_tats' ||
+                tab_selected=='bridges_stream' ||
+                tab_selected=='events_stream' ) {
+                section_filters_title.innerHTML = 'Filters :  deactivated';
+                return;
+            }
+
+            section_filters_title.innerHTML = 'Filters : ';
+
+            var search_params = {
+                input : klik_data[tab_selected],
+                filter : '',
+                results : {},
+            };
+
+            if (filter_textarea.value==='') {
+                search_params.results = search_params.input;
+            }
+            else {
+                var parts = filter_textarea.value.split(',');
+                for (var i=0; i<parts.length; i++) {
+                    var no_whitespace = parts[i].replace(/ /g, '');
+                    var split_equal = no_whitespace.split('=');
+                    var split_colon = no_whitespace.split(':');
+                    search_params.filter = (split_equal.length > split_colon.length) ? split_equal : split_colon;
+                    run_search(search_params); 
+                }
+            }
+
+            // console.log('input', search_params.input)
+            // console.log('filter', search_params.filter)
+            // console.log('results', search_params.results);
+
+            // rebuild build html with the search results
+            // maybe just need to show / hide existing rows
+            var html = '';
+            var counter = 0;
+            for (var k in search_params.results) {
+                html += klik_ui_list_item(tab_selected, search_params.results[k], false);
+                counter++;
+            }
+
+            by_id('list_'+tab_selected).innerHTML = html;
+            by_id('label_'+tab_selected).innerHTML = counter + ' '+text[tab_selected];
+        },
+    }
+
+    app.callbacks = {
+        on_ws_open : function() {
+            klik_send_off_state();
+        },
+
+        on_ws_message : function(data) {
+
+        },
+
+        on_app_data(namespace, data) {
+            // console.log(namespace, data);
+
+            if (namespace=='/config') {
+                section_config.innerHTML = klik_highlight(data);
+            }
+            else if (namespace=='zone_stats') {
+                section_zone_stats.innerHTML = klik_highlight(data);
+                setTimeout(function(){
+                    app.api.get_zone_stats()
+                }, 500);
+            }
+            else if (namespace=='live_stats') {
+                section_live_stats.innerHTML = klik_highlight(data);
+                setTimeout(function(){
+                    app.api.get_live_stats()
+                }, 500);
+            }
+            else if (namespace=='bridges_stream') {
+                streams.bridges_stream[data.bridge] = data;
+
+                section_bridges_stream.innerHTML = klik_highlight(streams.bridges_stream);
+                return;
+
+                if (tab_selected!='bridges_stream') {
+                    return;
+                }
+
+                var search_params = {
+                    input : streams.bridges_stream[data.bridge],
+                    filter : '',
+                    results : {},
+                };
+
+                if (filter_textarea.value==='') {
+                    search_params.results = search_params.input;
+                }
+                else {
+                    var parts = filter_textarea.value.split(',');
+                    for (var i=0; i<parts.length; i++) {
+                        var no_whitespace = parts[i].replace(/ /g, '');
+                        var split_equal = no_whitespace.split('=');
+                        var split_colon = no_whitespace.split(':');
+                        search_params.filter = (split_equal.length > split_colon.length) ? split_equal : split_colon;
+                        run_search(search_params); 
+                    }
+                }
+
+                // section_bridges_stream.innerHTML = klik_highlight(search_params.results);
+
+                for (var k in search_params.results) {
+                    console.log(k, search_params.results[k])
+                }
+
+            }
+            else if (namespace=='events_stream') {
+                section_events_stream.innerHTML = klik_highlight(data);
+                return;
+
+                if (data.payload) {
+                    if (data.payload.bookmarks) {
+            
+                        var user = attendees_by_device[data.device];
+                        if (user && data.payload.bookmarks.length>0) {
+                            user.bookmarks  = '';
+                            for (var i=0; i<data.payload.bookmarks.length; i++) {
+                                var item = data.payload.bookmarks[i];
+                                user.bookmarks += item.bookmarkable_id+ ' ('+item.seconds_ago+'), ';
+                            }
+                        }
+                    }
+
+                    var formatted_data = {};
+                    for (var key in attendees_by_device) {
+                        // console.log(attendees_by_device[key]);
+                        formatted_data[key] = {
+                            color : attendees_by_device[key].custom_fields.Badge_Color,
+                            name : attendees_by_device[key].first_name + ' '+attendees_by_device[key].last_name,
+                            data : attendees_by_device[key].bookmarks
+                        }
+                    }
+
+                    section_events_stream.innerHTML =  klik_highlight(formatted_data);
+                }
+                
+                // if (JSON.stringify(data).match('ipad')) {
+                //     streams.events_stream[data.content_id] = data;
+                //     section_events_stream.innerHTML = klik_highlight(streams.events_stream);
+                // }
+
+                // if (data.account) {
+                //     if (data.type=='tracking.location.enter') {
+                //         line_count++;
+
+                //         var table_row = '<tr style="line-height:28px;">';
+                //         // table_row += '<td>'+data.device+'</td>' ;
+
+                //         table_row += '<td style="text-align:right;">'+data.account.number_of_connections+'</td>';
+                //         table_row += '<td><span style="color:#00ffB9">'+data.account.first_name+' '+data.account.last_name+'</span></td>';
+
+                //         if (data.account.occupation!=undefined) {
+                //             table_row += '<td><span style="color:#f0d">'+data.account.occupation+'</span></td>';
+                //         }
+                //         else {
+                //             table_row += '<td></td>'
+                //         }
+                //         table_row += '<td>'+klik_data.locations[data.zone].display_name+'</td>' ;
+
+                //         // filter out duplicates
+                //         if (table_row != last_row) {
+                //             last_row = table_row;
+                            
+                //             if (line_count>200) {
+                //                 line_count = 0;
+                //                 table_string = table_row;
+                //             }
+                //             else {
+                //                 table_string = table_row + table_string;
+                //             }
+
+                //             section_events_stream.innerHTML = '<table style="font-size:20px;">'+table_string+'</table>';
+                //         }
+                //     }
+                // }
+
+                else if (data.type!='device_report') {
+                    console.log(data);
+
+                    var details = {
+                        type        : data.type,
+                        bookmark_id : data.bookmark_id,
+                        date        : data.date,
+                        device      : data.device,
+                        first_name  : data.account.first_name,
+                        last_name   : data.account.last_name,
+                        company     : data.account.company,
+                        occupation  : data.account.occupation,
+                    }
+
+                    section_events_stream.innerHTML = klik_highlight(details);
+                }
+                else {
+                    //  console.log(data);
+                }
+            }
+            else {
+                var handled = false;
+                namespace = namespace.substring(1); // '/locations' > 'locations'
+                for (key in key_map){
+
+                    
+                    if (namespace==key) {
+                        by_id('list_'+key).innerHTML = klik_data_create_html(key, data, key_map[key], (data[0].type==undefined) ) ;
+                        handled = true;
+                    }
+
+                    if (namespace=='attendees') {
+                        for (var i=0; i<data.length; i++) {
+                            if (data[i].devices.length>0) {
+                                attendees_by_device[data[i].devices[0].id] = data[i];
+                                // console.log(data[i].devices[0].id, data[i].first_name, data[i].last_name);
+                            }
+                        }
+                        // console.log(Object.keys(attendees_by_device).length);
+                        // console.log(attendees_by_device);
+                    }
+
+
+                }
+
+                // if (!handled) {
+                //     console.log('unhandled data :', namespace, data);
+                // }
+            }
+        },
+
+        on_app_ready: function() {
+            klik_data_init({'maps':{}, 'bridges':{}, 'locations':{}, 'attendees':{}, 'infrastructures':{}, 'pixels':{} });
+                    
+            for (var key in tab_visibilities) {
+                app.api.fetch[key] = tab_visibilities[key];
+            }
+            app.api.get_data();
+
+            init();
+        },
+
+        on_app_click: function(event) {
+            app.handlers[event.target.id]();
+        },
+
+        on_file_loaded: function(data) {
+            section_load.innerHTML = klik_parse_event_data(data); // klik_highlight(data);
+        }
+    }
+}
+
+
+function run_search(data) {
+    if (data.filter.length>1) {
+        // got a [key, value] pair, such as ['last_name','rousseau'], or ['custom_fields.Gender', 'male']
+        Object.assign(data.results, search_key_value_and_add_to_object(data.filter[0], data.filter[1], data.input));
+    }
+   
+    else {
+        // got a simple value to match, such as : ['rousseau']
+        Object.assign(data.results, search_value_and_add_to_object(data.filter[0], data.input));
+    }
+}
+          
+
+function search_value_and_add_to_object(val, dict) {
+    section_filters_title.innerHTML += JSON.stringify({val:val});
+    var result = {};
+    for (var k in dict ) {
+        if (JSON.stringify(dict[k]).toString().toLowerCase().match(val.toLowerCase())) {
+            result[k] = dict[k];
+        }
+    }
+    return result;
+}
+
+
+function search_key_value_and_add_to_object(key, val, dict) {
+    section_filters_title.innerHTML += JSON.stringify({key:key, val:val});
+    var result = {};
+    var value;
+    var parts = key.split('.');
+    for (var k in dict) {
+        value = dict[k];
+        for (var i=0; i<parts.length; i++) {
+            var next_level = value[parts[i]]
+            if (next_level) {
+                value = next_level
+            }
+        }
+        if (value!=null && value.toString().toLowerCase().match(val.toLowerCase())) {
+            result[k] = dict[k];
+        }   
+    }
+    return result;
+}
+
+
+function show_predefined_filters() {
+    show(filter_button_all);
+    show(filter_button_tags);
+    show(filter_button_pixels);
+    show(filter_button_beacons);
+    show(filter_button_hubs);
+    show(filter_button_configs);
+    show(filter_button_custom1);
+    show(filter_button_custom2);
+}
+
+
+function hide_predefined_filters() {
+    hide(filter_button_all);
+    hide(filter_button_tags);
+    hide(filter_button_pixels);
+    hide(filter_button_beacons);
+    hide(filter_button_hubs);
+    hide(filter_button_configs);
+    hide(filter_button_custom1);
+    hide(filter_button_custom2);
+}
+
+
+function klik_parse_event_data(data) {
+    var html = '<table>';
+    for (var key in data) {
+        html += '<p><tr><td style="text-align:right;">'+ Object.keys(data[key]).length + '</td><td><a style="text-decoration:none; color:#00ffB9;" href="#'+key+'"> '+key+'</a></td></tr><ta</p>'
+        // console.log(data);
+    }
+    html += '</table>';
+    return html;
+}
+
+
+window.onhashchange = function(event){
+    console.log(document.location.hash.substring(1));
+}
+
+
+function set_filter(event) {
+    apply_filter(event.target.value)
+}
+
+
+function apply_filter(data) {
+    filter_textarea.value = data; 
+    app.handlers['filter_button']();   
+}
+
+
+function reset(show_filters=true) {
+    for (var k in text) {
+        hide(by_id('section_'+k));
+        hide_predefined_filters();
+    }
+
+    if (show_filters) {
+        show(section_filters);
+    }
+    else {
+        hide(section_filters)
+    }
+}
+
+
+function init() {
+    reset(false);
+
+    // setup sections
+    section_maps.innerHTML = klik_ui_section_with_sidebar('maps');
+    section_bridges.innerHTML = klik_ui_section_with_sidebar('bridges');
+    section_locations.innerHTML = klik_ui_section_with_sidebar('locations');
+    section_attendees.innerHTML = klik_ui_section_with_sidebar('attendees');
+    section_infrastructures.innerHTML = klik_ui_section_with_sidebar('infrastructures');
+
+    // var style = 'font-size:15px;';
+    var style = 'font-size:15px; display:none;';
+    section_config.style.cssText = style;
+    section_live_stats.style.cssText = style;
+    section_zone_stats.style.cssText = style;
+    section_bridges_stream.style.cssText = style;
+    section_events_stream.style.cssText = style;
+    section_save.style.cssText = style;
+    section_load.style.cssText = style;
+
+
+    for (var key in tab_visibilities) {
+        var tab = by_id('button_'+key);
+        (tab_visibilities[key]) ? show(tab) : hide(tab);
+    }
+}
+
+
+// if (namespace=='attendees' && allow_pairing) {
+//     var users_to_modify = {
+//         'vk@pixmob.com'  : ['PIX1111', 'PIX_111'],
+//         'cld@pixmob.com' : ['PIX2222', 'PIX___2'],
+//         'jsr@pixmob.com' : ['PIX3333', 'PIX___3', 'PIX4545', 'PIX8989'],
+//     }
+
+//     var user = obj;
+//     for (var key in users_to_modify) {
+//         if (user.email===key) {
+
+//             // clear all devices
+//             var counter = 0;
+//             if (user.devices) {
+//                 for (var i=0; i<user.devices.length; i++) {
+//                     setTimeout(function(data) {
+//                         console.log('unpairing', data.user.first_name, 'from', data.device_id );
+//                         app.api.unpair_user_from_device(data.user.id, { method: 'id', id: data.device_id });
+//                     }, 200*counter++,
+//                     {
+//                         user: user, 
+//                         device_id: user.devices[i].id
+//                     });
+//                 }
+//             }
+
+//             // pair with devices from array
+//             var arr = users_to_modify[key];
+//             if (arr) {
+//                 for (var i=0; i<arr.length; i++) {
+//                     setTimeout(function(data) {
+//                         console.log('pairing', data.user.first_name, 'to', data.device_id );
+//                         app.api.pair_user_to_device(data.user.id, { method: 'id', id: data.device_id });
+//                     }, 200 * counter++,
+//                     {
+//                         user: user, 
+//                         device_id: arr[i]
+//                     });
+//                 }
+//             }
+//         }
+//     }
+// }
+
+</script>
+</head>
+</html>

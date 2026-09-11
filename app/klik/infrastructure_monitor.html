@@ -1,0 +1,1522 @@
+<!-- by JSR <jsr@pixmob.com -->
+<html>
+<head>
+<meta charset='utf-8'>
+<link rel='stylesheet' href='../../lib/klik_app.css' >
+<script type='text/javascript' src='../../lib/klik_app.js'></script>
+<script type='text/javascript'>
+
+const BATTERY_LEVEL_HIGH = 90; // higher than this value will be solid green
+const BATTERY_LEVEL_LOW  = 30; // lower than this value will pulse orange (same on the server side)
+
+const MONITOR_ALLOW_DRAGGING = false;
+
+var klik_monitor_config = {};
+var klik_monitor_tables = [];
+var klik_monitor_sidebar_scope = null;
+
+var dragging = false;
+
+window.onload = function() {
+    app = new KlikApp('tech', 'Infrastructure Monitor', 'klik', true, true);
+
+    app.navigation = [];
+
+    app.callbacks = {
+        on_ws_open : function() {
+            klik_send_off_state();
+        },
+
+        on_ws_message : function(data) {
+            console.log(data);
+        }, 
+
+        on_config_loaded : function(data) {
+            klik_monitor_config = data;
+            init();
+        },
+
+        on_config_missing : function(init_ui=true) {
+
+            // default config
+            klik_monitor_config = { 
+                fetch : { 
+                    maps : 1, 
+                    locations : 1, 
+                    infrastructures : 1, 
+                    attendees : 0 
+                },
+                autorun : 5000
+            };
+
+            // save default config
+            app.save_config(klik_monitor_config);
+
+            // init
+            if (init_ui) {
+                init();
+            }
+        },
+
+        on_app_ready : function(data) {
+            app.load_config();
+
+            // in progress : smarter table scroll, to keep showing the headers
+            // ---
+            
+            // $(window).scroll(function(e){ 
+
+            //     var name = klik_device_types.slice(0); // copy array
+            //     name.push('locations');
+
+            //     for (var i=0; i<name.length; i++) {
+            //         var div_header = document.getElementById('table_'+name[i]+'_0');
+            //         var div_data   = document.getElementById('table_'+name[i]+'_1');
+            //         var box = div_data.getBoundingClientRect();
+
+            //         div_header.scrollLeft 
+
+            //         div_header.scrollLeft = div_data.scrollLeft;
+
+            //         console.log(' div_data.parentNode.scrollHeight',  div_data.parentNode.scrollHeight);
+            //         console.log(' div_data',  div_data);
+            //         // console.log(box.top, div_data.parentNode.scrollHeight);
+
+            //         if (box.top <= (-1*div_data.parentNode.scrollHeight+30)) { 
+            //             div_header.style.cssText = 'display:none;'
+            //         }
+            //         else if (box.top < 30) { 
+            //             div_header.style.cssText = 'position:fixed; top:28px;' 
+            //         }
+            //         else if (box.top >= 30) { 
+            //             div_header.style.cssText = 'position:initial;'
+            //         }  
+            //     }
+            // });
+
+            // show(config);
+        },
+
+        on_app_data : function(namespace, data) {
+            handle_data(namespace, data);
+        }
+    }
+}
+
+
+function init() {
+
+    var s = by_class('klik_section');
+    for (var i=0; i<s.length; i++) {
+        add_class(s[i], 'loaded'); 
+    }
+
+    klik_monitor_init();
+
+    $('#table_beacons_1').scroll(function(){ 
+        console.log(' this.scrollLeft', $(this).scrollLeft() ) ;
+    });
+}
+
+
+var klik = null
+var theme = {};
+var layer_flags = {};
+
+var klik_device_types = [
+    'infrastructures_attendees',
+    'infrastructures_beacons',
+    'infrastructures_configs',
+    'infrastructures_hubs',
+    'infrastructures_mobiles',
+    'infrastructures_pixels',
+    'infrastructures_registrations',
+    'infrastructures_sentinelles',
+    'infrastructures_tags',
+    'infrastructures_touchpoints',
+];
+
+
+// var isSyncingLeftScroll = false;
+// var isSyncingRightScroll = false;
+
+function klik_monitor_clear() {
+    for (var i in klik_monitor_tables) {
+        $(klik_monitor_tables[i]).html('<p>deactivated</p>');
+    }
+    klik_monitor_tables = [];
+}
+
+
+function add_tables(namespace) {
+    klik.table[namespace][0].innerHTML = ''; 
+    var table_0 = build_html_table(klik.table[namespace][0], klik.data[namespace], conf.headers[namespace]);
+    $('#table_'+namespace+'_0').html(table_0);
+    setup_cell_interaction(klik.table, namespace, 0);
+
+    klik_monitor_tables.push('#table_'+namespace+'_0');
+
+    // klik.table[namespace][1].innerHTML = '';
+    // var table_1 = table_0.cloneNode(true);
+    // $('#table_'+namespace+'_1').html(table_1);
+    // setup_cell_interaction(klik.table, namespace, 1);
+}
+
+
+function klik_monitor_save() {
+    app.save_config(klik_monitor_config);
+}
+
+
+function klik_monitor_toggle(key) {
+    klik_monitor_config.fetch[key] = app.api.fetch[key] = 1-app.api.fetch[key];
+
+    klik_monitor_save();
+    klik_monitor_clear();
+    klik_monitor_update_sidebar();
+    klik_monitor_page_refresh();
+}
+
+
+function klik_monitor_interval(interval_in_ms) {
+    klik_monitor_config.autorun = interval_in_ms;
+
+    klik_monitor_save();
+    klik_monitor_update_sidebar();
+
+    app.api.autorun(klik_monitor_config.autorun);
+
+
+    var intervals = [ 2000, 5000, 10000];
+    for (var i in intervals) {
+        var btn = by_id(klik_monitor_sidebar_scope+'button_interval_'+intervals[i]);
+        btn.innerHTML = 'refresh '+intervals[i]+' ms';
+        btn.style.backgroundColor = 'rgba(255,0,0,0.4)';
+        btn.style.border = '1px solid red';
+    }
+
+    var btn = by_id(klik_monitor_sidebar_scope+'button_interval_'+interval_in_ms);
+    btn.style.backgroundColor = 'rgba(0,255,255,0.4)';
+    btn.style.border = '1px solid cyan';
+}
+
+
+
+function klik_monitor_populate_sidebar(scope, style) {
+    klik_monitor_sidebar_scope = scope;
+
+    var s = add_node(klik_toolbar_settings, 'div', { _c:'klik_section' });
+    add_node(s, 'button', { _c:'small', _s:style, onclick:'klik_monitor_toggle("maps")'            , _i:scope+'button_toggle_maps' });
+    add_node(s, 'button', { _c:'small', _s:style, onclick:'klik_monitor_toggle("locations")'       , _i:scope+'button_toggle_locations' });
+    add_node(s, 'button', { _c:'small', _s:style, onclick:'klik_monitor_toggle("infrastructures")' , _i:scope+'button_toggle_infrastructures' });
+    add_node(s, 'button', { _c:'small', _s:style, onclick:'klik_monitor_toggle("attendees")'       , _i:scope+'button_toggle_attendees' });
+
+    var s = add_node(klik_toolbar_settings, 'div', { _c:'klik_section' });
+    add_node(s, 'button', { _g:1, _c:'small', _s:style, onclick:'klik_monitor_interval(2000)' , _i:scope+'button_interval_2000' });
+    add_node(s, 'button', { _g:1, _c:'small', _s:style, onclick:'klik_monitor_interval(5000)' , _i:scope+'button_interval_5000' });
+    add_node(s, 'button', { _g:1, _c:'small', _s:style, onclick:'klik_monitor_interval(10000)', _i:scope+'button_interval_10000' });
+
+    var s = add_node(klik_toolbar_settings, 'div', { _c:'klik_section' });
+    add_node(s, 'button', { _c:'small', _s:style, onclick:'show(config)', _i:scope+'button_show_data', _l:'show JSON' });
+    add_node(s, 'button', { _c:'small', _s:style, onclick:'hide(config)', _i:scope+'button_hide_data', _l:'hide JSON' });
+
+
+    setTimeout(function() {
+        klik_monitor_update_sidebar();
+    }, 1000);
+
+}
+
+
+function klik_monitor_update_sidebar() {
+    var keys = ['maps', 'locations', 'infrastructures', 'attendees'];
+    for (var i in keys) {
+        var k = keys[i];
+
+        var btn = by_id(klik_monitor_sidebar_scope+'button_toggle_'+k);
+        btn.innerHTML = k;
+
+        if (app.api.fetch && app.api.fetch[k]) {
+            btn.style.backgroundColor = 'rgba(0,255,255,0.4)';
+            btn.style.border = '1px solid cyan';
+        }
+        else {
+            btn.style.backgroundColor = 'rgba(255,0,0,0.4)';
+            btn.style.border = '1px solid red';
+        }
+    }
+}   
+
+
+var sort_filters = {
+    maps: {
+        key: 'name', 
+        order: 'up',
+    },
+    locations: {
+        key: 'display_name', 
+        order: 'up',
+    },
+    attendees: {
+        key: 'last_name', 
+        order: 'up',
+    },
+    infrastructures_attendees: {
+        key: 'name', 
+        order: 'up',
+    },
+    infrastructures_beacons: {
+        key: 'name', 
+        order: 'up',
+    },
+    infrastructures_tags: {
+        key: 'description', 
+        order: 'up',
+    },
+    infrastructures_touchpoints: {
+        key: 'description', 
+        order: 'up',
+    },
+    infrastructures_configs: {
+        key: 'id', 
+        order: 'up',
+    },
+    infrastructures_hubs: {
+        key: 'id', 
+        order: 'up',
+    },
+    infrastructures_mobiles: {
+        key: 'id', 
+        order: 'up',
+    },
+    infrastructures_pixels: {
+        key: 'id', 
+        order: 'up',
+    },
+    infrastructures_registrations: {
+        key: 'id', 
+        order: 'up',
+    },
+    infrastructures_sentinelles: {
+        key: 'id', 
+        order: 'up',
+    },
+}
+
+
+function get_filter(namespace) {
+    return sort_filters[namespace];
+}
+
+
+function sort_data(namespace) {
+    try {
+        var filter = get_filter(namespace);
+        // console.log('namespace:', namespace, 'filter:', filter);
+        klik.data[namespace].sort(klik_sort_anything(filter.key)[filter.order]);
+        return true;
+    }
+    catch(e) {
+        // console.log('unable to sort', namespace, filter.key, filter.order);
+        // console.log(e);
+        return false;
+    }
+}
+
+
+function handle_data(namespace, data) {
+    // console.log(namespace, data);
+
+    if (dragging) {
+        return;
+    }
+
+    // remove forward slash, because using namespace as key
+    if (namespace=='/maps' || 
+        namespace=='/locations' || 
+        namespace=='/attendees' || 
+        namespace=='/infrastructures' ) {
+        namespace = namespace.substring(1);
+    }
+
+    if (namespace=='maps') {
+        for (var i=0; i<data.length; i++) {
+            klik.dict[data[i].name] = data[i];
+        }
+        klik.data.maps = data;
+        sort_data(namespace);
+
+        var label = ((klik.data.maps.length>1)?'maps':'map');
+        label_maps.innerHTML = klik.data.maps.length+' '+label;
+
+        add_tables('maps');
+        // $('#table_maps_0').addClass("hidden_data");
+        // $('#table_maps_1').addClass("hidden_header");
+    }
+    
+    else if (namespace=='locations') {
+        for (var i=0; i<data.length; i++) {
+            klik.dict[data[i].name] = data[i];
+        }
+        klik.data.locations = data;
+        sort_data(namespace);
+
+        var label = ((klik.data.locations.length>1)?'locations':'location');
+        label_locations.innerHTML = klik.data.locations.length+' '+label;
+
+        add_tables('locations');
+        // $('#table_locations_0').addClass("hidden_data");
+        // $('#table_locations_1').addClass("hidden_header");
+    }
+
+    else if (namespace=='attendees') {
+        for (var i=0; i<data.length; i++) {
+            klik.dict[data[i].id] = data[i];
+        }
+        klik.data.attendees = data;
+        sort_data(namespace);
+
+        var label = ((klik.data.attendees.length>1)?'attendees':'attendee');
+        label_attendees.innerHTML = klik.data.attendees.length+' '+label;
+
+        add_tables('attendees');
+        // $('#table_attendees_0').addClass("hidden_data");
+        // $('#table_attendees_1').addClass("hidden_header");
+    }
+
+    else if (namespace=='infrastructures') {
+        
+        for (var i=0; i<data.length; i++) {
+            klik.dict[data[i].id] = data[i];
+        }
+        for (var i=0; i<klik_device_types.length; i++) {
+            klik.data[klik_device_types[i]] = [];
+        }
+
+        klik.data.infrastructures_tags_ignored = [];
+        klik.data.infrastructures_pixels_ignored = [];
+
+        for (var i=0; i<data.length; i++) {
+            for (var j=0; j<klik_device_types.length; j++) {
+                if ('infrastructures_'+data[i].type+'s'==klik_device_types[j]) {
+
+                    // if (data[i].type=='beacon') {
+                    //     if (data[i].id.match('hubdroid')) {
+                    //         console.log(data[i]); 
+                    //     }
+                    // }
+
+                    // if (data[i].type=='touchpoint') {
+                    //     console.log(data[i]); 
+                    // }
+
+                    if (data[i].map) {
+                        klik.data[klik_device_types[j]].push(data[i]);
+                    }
+                    else if (data[i].type=='tag') {
+                        klik.data.infrastructures_tags_ignored.push(data[i]);
+                    }
+                    else if (data[i].type=='pixel') {
+                        klik.data.infrastructures_pixels_ignored.push(data[i]);
+                    }
+                }
+            }
+        }
+
+        // at this point, all data is stored inside klik.data
+        // for (var i=0; i<klik.data.infrastructures_tags.length; i++) {
+        //     var tag = klik.data.infrastructures_tags[i];
+        // }
+
+        // here we only update all table titles (labels) with 
+        // the corresponding device counters
+        for (var i=0; i<klik_device_types.length; i++) {
+            var type = klik_device_types[i];
+            var data = klik.data[type];
+            var label = type;
+
+            // console.log(label);
+
+            // replace the beacons with hubs
+            if (label=='infrastructures_beacons') {
+                label = 'infrastructures_hubs';
+            }
+   
+            if (label.match('infrastructures')) {
+                label = label.substring(16, label.length);
+            }
+
+            // adjust label for singular / plurar
+            label = ((data.length>1) ? label : label.substring(0, label.length-1));
+
+            if (type=='infrastructures_pixels') {
+                label_infrastructures_pixels.innerHTML = klik.data.infrastructures_pixels.length+' '+label+' - plus '+klik.data.infrastructures_pixels_ignored.length+' not on the map';
+                label_infrastructures_pixels.innerHTML += ' - total of '+ (klik.data.infrastructures_pixels.length+klik.data.infrastructures_pixels_ignored.length);
+            }
+            else if (type=='infrastructures_tags') {
+                label_infrastructures_tags.innerHTML = klik.data.infrastructures_tags.length+' '+label+' - plus '+klik.data.infrastructures_tags_ignored.length+' not on the map';
+                label_infrastructures_tags.innerHTML += ' - total of '+ (klik.data.infrastructures_tags.length+klik.data.infrastructures_tags_ignored.length);
+            }
+            else {
+                var div = by_id('label_'+type);
+                if (div) {
+                    div.innerHTML = data.length+' '+label;
+                }
+            }
+        }
+
+
+        // console.log(klik.data.configs.length, 'configs', klik.data.configs[0]);
+        // var ids = '';
+        // for (var j=0; j<klik.data.infrastructures_tags_ignored.length; j++) {
+        //     console.log(klik.data.infrastructures_tags_ignored[j])
+        //     ids += klik.data.infrastructures_tags_ignored[j].id +'<br>';
+        // }
+        // document.body.innerHTML = ids;
+
+
+        for (var j=0; j<klik_device_types.length; j++) {
+            var key =  klik_device_types[j];
+            sort_data(key);
+         
+            klik.table[key][0].innerHTML = ''; // table for headers
+            // klik.table[key][1].innerHTML = ''; // table for data
+
+            // if (layer_flags && layer_flags[key.substring(0,key.length-1)][1]==0) {
+            
+            // }
+            // else {
+
+                add_tables(key);
+          
+                // remember current widths for all columns
+                // look only at first table row
+                // var item = by_id('table_'+key+'_1');
+                // var cols;
+                // try {
+                //     cols = item.getElementsByTagName("tr")[1].getElementsByTagName("td");
+                //     conf.header_widths[key] = []
+                //     for (k = 0; k<cols.length; k++) { // loop all column items
+                //         // conf.header_widths[key].push(cols[k].offsetWidth);
+                //         cols[k].style.cssText = 'width:'+cols[k].offsetWidth+40+'px;';
+                //     }
+                // }
+                // catch(e) {
+                //     console.log(e)
+                // }
+            
+                // $('#table_'+key+'_0').addClass("hidden_data");
+                // $('#table_'+key+'_1').addClass("hidden_header");
+            // }
+        }
+    }
+
+
+    // setup visibility based on what was setup in the Manager
+    // looking at the one config icon that is named 'MainConfig'
+
+    if (klik.data.configs && klik.data.configs.length>0) {
+        // console.log('---------', klik.data.configs);
+        for (var i in klik.data.configs) {
+            // console.log(klik.data.configs[i]);
+            if (klik.data.configs[i].name==='MainConfig') {
+                if (klik.data.configs[i].custom.settings) {
+                    layer_flags = klik.data.configs[i].custom.settings.layer_flags;
+                }
+            }
+        }               
+    }
+
+    //layer_flags[key][0] , lock
+    //layer_flags[key][1] , visible
+
+
+    if (layer_flags) {
+        // console.log('--', layer_flags);
+        for (var i=0; i<klik_device_types.length; i++) {
+            var key = klik_device_types[i];
+
+            // console.log('--', key, layer_flags,);
+            var dev_flags = layer_flags[key.substring(0, key.length-1)]
+
+            if (dev_flags) {
+                if (dev_flags[1]==0) { 
+                    $('#section_'+key).hide();
+                }
+                else {
+                    $('#section_'+key).show();
+                }
+            }
+            else {
+                $('#section_'+key).show();
+            }
+        }
+
+        if (layer_flags['location'] && layer_flags['location'][1]==0) {
+            $('#section_locations').hide();
+        }
+        else {
+            $('#section_locations').show();
+        }
+
+        if (layer_flags['attendee'] && layer_flags['attendee'][1]==0) {
+            $('#section_attendees').hide();
+        }
+        else {
+            $('#section_attendees').show();
+        }
+
+        if (layer_flags['map'] && layer_flags['map'][1]==0) {
+            $('#section_maps').hide();
+        }
+        else {
+            $('#section_maps').show();
+        }
+    }
+
+    // console.log(klik.dict);
+    // re-filter (not optimal to always rebuild the html tables...)
+    klik_table_search_all();
+}
+
+
+// make everything clickable
+function setup_cell_interaction(tables, namespace, index) {
+    // console.log('setup_cell_interaction', namespace, tables)
+    var table = tables[namespace][index];
+
+    if (table != null) {
+        for (var i = 0; i < table.rows.length; i++) {
+            for (var j = 0; j < table.rows[i].cells.length; j++) {
+
+                table.rows[i].cells[j].onclick = function (event) {
+                    var item = klik.dict[event.target.innerHTML];
+                    if (item) {
+                        config_string.innerHTML = event.target.innerHTML+'<PRE>'+JSON.stringify(item, null, '  ')+'</PRE>';
+                    }
+                    else {
+                        var element = event.target;
+                        if (element.nodeName === "TH") {
+                            var filter = get_filter(namespace);
+                            filter.order = (filter.order=='down')?'up':'down';
+                            filter.key = element.id.substring(3);
+                            // console.log(namespace, filter)
+
+                            // sort, clear and rebuild
+                            if (sort_data(namespace)) {
+                                klik.table[namespace][0].innerHTML = '';
+                                add_tables(namespace); 
+
+                                klik_table_search('table_'+namespace+'_0');
+                            }
+                        }
+                        config_string.innerHTML = 'nothing found for : "'+ element.innerHTML +'"';
+                    }
+                };
+            }
+        }
+    }
+}
+
+
+var default_device_headers = [
+    ['id', 'ID'],
+    ['name', 'NAME'],
+    ['x','MAP.X'], ['y','MAP.Y'],
+    ['description', 'DESCRIPTION'],
+    ['custom.added.time', 'ADDED'],
+    ['custom.updated.time', 'UPDATED'],
+    ['map', 'MAP'],
+    ['custom.zone', 'ZONE'],
+]
+
+
+var conf = {
+    // header_widths : {
+    //     // locations       :[],
+    //     // attendees       :[], 
+    //     beacons         :[],
+    //     configs         :[],
+    //     hubs            :[],
+    //     mobiles         :[],
+    //     pixels          :[],
+    //     registrations   :[],
+    //     sentinelles     :[],
+    //     tags            :[]
+    // },
+    headers : {
+
+        maps : [
+            // ['id', 'ID'  ],
+            ['name', 'NAME'  ],
+            ['private', 'PRIVATE'  ], 
+            ['image_url', 'IMAGE URL'], 
+        ],
+
+        locations : [
+            ['name'                 , 'NAME'  ], 
+            ['display_name'         , 'DISPLAY NAME'],
+            ['tuning.min_certainty' , 'CERT.'],
+            ['tuning.threshold'     , 'THRESH.'],
+            ['tuning.timeout'       , 'TIMEOUT'],
+            ['tuning.samples'       , 'SAMPLES'],
+            ['tuning.sample_ratio'  , 'RATIO'],
+            ['tuning.stickiness'    , 'STICKY'],
+            ['map'                  , 'MAP'],
+            ['tuning.tags.length'   , 'TAGS'],
+            ['tag_selector'         , 'SELECTOR'], 
+            ['tuning.tags'          , 'TAG IDS'],
+
+
+            // legacy
+            // ['tuning.beacons.length', 'BEACONS'],
+            // ['tuning.beacons'       , 'BEACON IDS'],
+        ],
+
+        attendees : [
+            ['id'           , 'ID'],
+            ['last_name'    , 'LAST NAME'],
+            ['first_name'   , 'FIRST NAME'],
+            ['score'        , 'SCORE'],
+            ['email'        , 'EMAIL'],
+            ['devices'      , 'DEVICES'],
+        ],
+
+        infrastructures_beacons : [
+            ['status.status', 'STATUS'],
+            ['id', 'ID'],
+            ['name' , 'NAME'],
+            
+            ['status.battery', 'PHONE %'],
+            ['status.peripheral_battery', 'AMP %'],
+
+            
+            ['status.last_status_payload.stats.packetsReceived', 'BLE IN'],
+            // ['status.last_status_payload.stats.packetsSent', 'PKT SENT'],
+            // ['status.last_status_payload.scheduledBroadcasts', 'BRO ?'],
+
+
+            // stats.now    = 10 seconds
+            // stats.recent =  2 minutes
+            // stats.stable = 10 minutes
+            ['status.stats.recent.packet_rate'      , 'PKT/s'],
+            ['status.stats.recent.bitrate'          , 'BIT/s'],
+            ['status.stats.recent.devices'          , 'PIX'],
+            ['status.stats.recent.report_rate'      , 'PIX/s'],
+            ['status.stats.recent.tags'             , 'TAG'],
+            ['status.stats.recent.tag_report_rate'  , 'TAG/s'],
+
+            ['status.last_status_payload.hardwareState.isAdvertising', 'BLE OUT'],
+
+            ['description'  , 'DESCRIPTION'],
+
+            // ['status.stats.recent.error_rate'       , 'ERROR RATE'],
+            // ['status.stats.recent.packet_errors'    , 'PKT ERROR'],
+            // ['status.stats.recent.missed_packets'   , 'MISS'],
+            // ['status.stats.recent.dropped_packets'  , 'DROP'],
+            
+            // bitrate and packet_rate dont work anymore
+            // ---
+            // ['status.bridge_stats.now.bitrate'      , 'BIT/s'],
+            // ['status.bridge_stats.now.packet_rate'  , 'PKT/s'],
+
+            ['status.status_msg'          , 'MESSAGE'],
+            ['status.last_heard'          , 'LAST HEARD'],
+            ['status.last_connected'      , 'LAST CONNECTED'],
+            // ['status.last_known_connected', 'LAST KNOWN CONNECTED'],
+            // ['status.last_status'         , 'LAST STATUS'],
+
+            // old beacons
+            // ---
+            // ['status.battery_mV'    , 'BATTERY'],
+            // ['status.button_pressed', 'BUTTON'],
+            
+            // ['status.bridge'        , 'BRIDGE'],
+            // ['custom.zone'          , 'ZONE'],
+
+            // map
+            // ['map'  , 'MAP'],
+            // ['x'    , 'MAP.X'],
+            // ['y'    , 'MAP.Y'],
+        ],
+
+        infrastructures_tags : [
+            ['status.status', 'STATUS'],
+            ['id', 'ID'],
+            ['x', 'MAP.X'],
+            ['y', 'MAP.Y'],
+            ['name'                     , 'NAME'],
+            ['status.status_msg'        , 'MESSAGE'],
+            ['status.last_heard'        , 'LAST HEARD'],
+            ['custom.notifications'     , 'NOTIF'],
+            ['description'              , 'DESCRIPTION'],
+            ['custom.added.time'        , 'ADDED'],
+            ['custom.updated.time'      , 'UPDATED'],
+            ['map'                      , 'MAP'],
+            ['custom.zone'              , 'ZONE'],
+            // ['custom.notifications'     , 'NOTIF'],
+        ],
+
+        infrastructures_touchpoints : [
+            // ['status.status', 'STATUS'],
+            ['id', 'ID'],
+            ['x', 'MAP.X'],
+            ['y', 'MAP.Y'],
+            ['name'                     , 'NAME'],
+            // ['status.status_msg'        , 'MESSAGE'],
+            // ['status.last_heard'        , 'LAST HEARD'],
+            ['custom.notifications'     , 'NOTIF'],
+            ['description'              , 'DESCRIPTION'],
+            ['custom.added.time'        , 'ADDED'],
+            ['custom.updated.time'      , 'UPDATED'],
+            ['map'                      , 'MAP'],
+            // ['custom.zone'              , 'ZONE'],
+            // ['custom.notifications'     , 'NOTIF'],
+        ],
+
+        infrastructures_attendees       : default_device_headers,
+        infrastructures_configs         : default_device_headers,
+        infrastructures_hubs            : default_device_headers,
+        infrastructures_mobiles         : default_device_headers,
+        infrastructures_pixels          : default_device_headers,
+        infrastructures_registrations   : default_device_headers,
+        infrastructures_sentinelles     : default_device_headers,
+    }
+}
+
+function build_html_table(table, arr, headers) {
+   
+    // console.log(table, arr, headers)
+
+    var columns = [];
+
+    // build headers, ids are important
+    var tr = proto.tr.cloneNode(false);
+    for (var i=0; i<headers.length; i++) {
+        columns.push(headers[i]);
+        var th = proto.th.cloneNode(false);
+        if (typeof(headers[i])=='object' && headers[i].length>=2) {
+            th.appendChild(document.createTextNode(headers[i][1]));
+            th.id = 'th_'+headers[i][0];
+            // console.log(th.id);
+        }
+        tr.appendChild(th);
+    }
+    table.appendChild(tr);
+
+
+    var widths = []
+    for (var i=0, maxi=arr.length; i < maxi; ++i) {
+
+        var tr = proto.tr.cloneNode(false); // table row
+        widths[i] = 0;
+
+        for (var j=0, maxj=columns.length; j < maxj ; ++j) {
+            var td, header, val;
+
+            td = proto.td.cloneNode(false); // table data (cell)
+            header = columns[j];
+            val = null;
+           
+            // var voltage = arr[i]['status']['battery_mV']/1000.;
+            // if (voltage==klik_hub_voltage) {
+            //     val = 'N/A'; // no battery level when it's a hub
+            // }
+            // else {
+            //     val = klik_get_battery_level_formatted(voltage);
+                
+            //     if (voltage > klik_battery_voltage_fresh) {
+            //         td.style.color = theme.color.healthy;
+            //     }
+                
+            //     if (voltage < klik_battery_voltage_warning) { 
+            //         td.style.color = theme.color.warning;
+            //     }
+
+            //     if (voltage < klik_battery_voltage_critical) { 
+            //         td.style.color = theme.color.critical;
+            //     }
+            // }
+            
+            // else if (header==='bars' || header[0]=='bars') {
+            //     var voltage = arr[i]['status']['battery_mV']/1000.;
+            //     if (voltage==klik_hub_voltage) {
+            //         val = 'N/A'; // no battery level when it's a hub
+            //     }
+            //     else {
+            //         val = klik_get_battery_level_bar(voltage);
+            //         if (voltage > klik_battery_voltage_fresh) {
+            //             td.style.color = theme.color.healthy;
+            //         }
+            //         if (voltage < klik_battery_voltage_warning){
+            //             td.style.color = theme.color.warning;  
+            //         } 
+            //         if (voltage < klik_battery_voltage_critical) {
+            //             td.style.color = theme.color.critical;
+            //         }
+            //     }
+            // }
+
+            var parts = [];
+            if (typeof(header)=='object') {
+                parts = header[0].split('.');
+            }
+            else {
+                parts = header.split('.');
+            }
+
+            val = arr[i];
+            for (var k=0; k<parts.length; k++) {
+                if (val[parts[k]]!=null) {
+                    val = val[parts[k]];
+                }
+                else {
+                    val = null;
+                    break;
+                }
+            }
+            
+            if (typeof(val)=='object') {
+                var str = '';
+                for (var idx in val) {
+                    if (val[idx].id) {
+                        str += val[idx].id+', ';
+                    }
+                }
+
+                if (str!='') {
+                    val = str;
+                }
+            }
+
+            if (val) {
+                val = val.toString();
+            }
+
+            if (header[1]=='MAP.X' || header[1]=='MAP.Y') {
+                val = Math.round(val*100)/100.;
+            }
+
+            if (header[1].match('%')) {
+                if (val) {
+                    val = 100 * Math.round(val*100)/100.;
+                }
+            }
+
+            if (header[1].match('/s') ) {
+                val = Math.ceil(val);
+            }
+
+            if (header[1].match('PKT') || header[1].match('BLE IN') ) {
+                if (val) {
+                    val = Math.ceil(val);
+                }
+            }
+
+
+            // if (header[0]=='status.status') {
+            //     if (val=='critical') {
+            //         tr.style.color = '#f00';
+            //     }
+            // }
+     
+            // if (typeof val === 'object') {
+            //     val = JSON.stringify(val);
+            // }
+            if (header[1]=='MASTER') {
+                if (val=='1') {
+                    tr.style.color = theme.color.warning; // row cyan
+                }
+            } 
+
+            // if (header[0].match('URL')) {
+            //     val = '<a href='+val+'>link</link>';
+            // }
+
+
+             // styling based on content
+            if (val=='0') {
+                // td.style.color = '#888';
+            }
+            
+            if (parts[k-1]=='timeout' && val!='120' ) {
+                td.style.color = theme.color.warning; // cell orange
+            }
+            else if (parts[k-1]=='samples' && val!='60' ) {
+                td.style.color = theme.color.warning; // cell orange
+            }
+            else if (parts[k-1]=='stickiness' && val!='60' ) {
+                td.style.color = theme.color.warning; // cell orange
+            }
+            else if (val==='healthy') {
+                td.style.color = theme.color.healthy; // cell cyan
+            }
+            else if (val==='warning') {
+                td.style.color = theme.color.warning; // cell orange
+            }
+            else if (val==='critical') {
+                tr.style.color = theme.color.critical; // entire row red
+            }
+            else if (val==null || val=='null') {
+                // td.style.fontStyle = 'italic';
+                // theme.color.warning;
+                td.style.color = '#666'; 
+                val = '-';
+            }
+            else if (typeof(val)=='string' && val.match('Not heard in')) {
+                // td.style.color = theme.color.warning;
+                var seconds = parseInt(arr[i]['status']['last_heard']);
+                val = hh_mm_ss_since(seconds, 'ago');
+            }
+            else if (typeof(val)=='string' && val.match('Missed packets')) {
+                // td.style.color = theme.color.warning;
+                var seconds = parseInt(arr[i]['status']['last_heard']);
+                val = hh_mm_ss_since(seconds, 'ago - '+val);
+                td.style.color = theme.color.warning;
+            }
+            else if (typeof(val)=='string' && parts[k-1]=='last_heard') {
+                // td.style.color = theme.color.warning;
+                val = new Date(parseInt(arr[i]['status']['last_heard'])*1000).toLocaleString();
+            }
+            else if (typeof(val)=='string' && parts[k-1]=='time') {
+                // td.style.color = theme.color.warning;
+                // // val = new Date(parseFloat(val)*1000);
+                val = new Date(val).toLocaleString();
+            }
+
+            // any other filed that contains the wording LAST
+            // will be showed as a time string
+            else if (header[1].match('LAST') ) {
+                // console.log(parts[k-1]);
+                val = new Date(parseInt(arr[i]['status'][parts[k-1]])*1000).toLocaleString();
+            }
+            else if ((parts[k-1]=='battery' || parts[k-1]=='peripheral_battery')) {
+                if (val<=BATTERY_LEVEL_LOW) {
+                    if (arr[i].status.status!='critical') {
+                        add_class(td, 'pulse');
+                        td.style.color = theme.color.warning;
+                    }
+                }
+                else if (val>=BATTERY_LEVEL_HIGH ) {
+                    td.style.color = theme.color.healthy;
+                }
+            }
+
+            if (val && val.length>widths[i]) {
+                widths[i] = val.length;
+            }
+
+            if (header[0].match('url')) {
+                var link = document.createElement('a');
+                var text = document.createTextNode('link');
+                link.append(text);
+                link.href = val;
+                // console.log(val);
+                td.appendChild(link);
+            } 
+            else {
+                td.appendChild(document.createTextNode(val));
+            }
+            tr.appendChild(td);           
+        }
+        table.appendChild(tr);
+    }
+
+    // console.log(widths);
+    // setup a row with all the longest content foreach column
+  
+    // var tr = proto.tr.cloneNode(false);
+    // table.appendChild(tr);
+    // for (var j=0, maxj=columns.length; j < maxj ; ++j) {
+    //     var td = proto.td.cloneNode(false);
+    //     var txt = '.';
+    //     while(txt.length<widths[j]) {
+    //         txt+='.'
+    //     }
+    //     td.appendChild(document.createTextNode(txt));
+    //     tr.appendChild(td);   
+    // }
+
+    // console.log(table)
+
+    return table;
+ }
+
+
+function init_data() {
+  klik = {
+        dict : { },
+        data : {
+            maps      : [], 
+            locations : [], 
+            attendees : [], 
+
+            infrastructures_attendees       : [], 
+            infrastructures_beacons         : [], 
+            infrastructures_configs         : [],
+            infrastructures_hubs            : [],
+            infrastructures_mobiles         : [],
+            infrastructures_pixels          : [],
+            infrastructures_pixels_ignored  : [], 
+            infrastructures_registrations   : [],
+            infrastructures_sentinelles     : [],
+            infrastructures_tags            : [],
+            infrastructures_tags_ignored    : [], 
+            infrastructures_touchpoints     : [],
+        },
+        table : {                           // table for header only        , table for data
+            maps                            : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            locations                       : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            attendees                       : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_attendees       : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_beacons         : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_configs         : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_hubs            : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_mobiles         : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_pixels          : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_pixels_ignored  : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_registrations   : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_sentinelles     : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_tags            : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_tags_ignored    : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+            infrastructures_touchpoints     : [ proto.table.cloneNode(false), proto.table.cloneNode(false) ],
+        }
+    };  
+}
+
+
+function klik_monitor_page_refresh() {
+    app.api.get_data();
+}
+
+
+function klik_monitor_init() {
+
+    if (!klik_monitor_config) {
+        tech.cout('missing configuration, please provide one')
+        return;
+    }
+
+    for (key in klik_monitor_config.fetch) {
+        app.api.fetch[key] = klik_monitor_config.fetch[key]; 
+    }
+    
+    klik_monitor_interval(klik_monitor_config.autorun);
+
+    init_data();
+
+    check_node('config');
+    check_node('config_minimize');
+    check_node('config_string');
+
+    theme = new KlikTheme();
+
+    // init ui
+    $('.draggable').each(function(i, element) {
+        if (MONITOR_ALLOW_DRAGGING) {
+            var self = $(this);
+            $(this).draggable({
+                // grid:[20, 20], 
+                start: function(e, ui) { 
+                    dragging = true;
+                },
+                drag: function(e, ui) {  
+
+                },
+                stop: function(e, ui ) {
+                    dragging = false;
+                }
+            });
+        }
+    });
+
+    $('.always-draggable').each(function(i, element) {
+            var self = $(this);
+            $(this).draggable({
+                // grid:[20, 20], 
+                start: function(e, ui) { 
+                    dragging = true;
+                },
+                drag: function(e, ui) {  
+
+                },
+                stop: function(e, ui ) {
+                    dragging = false;
+                }
+            });
+        // }
+    });
+
+    klik_min_max();
+}
+
+</script>
+
+<style>
+
+a {
+    color:inherit;
+    text-decoration: none;
+}
+
+table, th, td {
+    font-family     : monospace;
+    text-align      : left;
+    margin          : 0; 
+    padding         : 2;
+    padding-left    : 4;
+    padding-right   : 4;
+    font-size       : 14px;
+    text-align      : left;
+    /*background-color: #400;*/
+}
+
+table .ios {
+    padding         : 8;
+}
+
+table {
+    /*table-layout    : fixed;*/
+    border-collapse : collapse;
+    width           : 100%;
+    float           : left;
+    margin-top      : 2px;
+}
+
+td {
+    white-space     : nowrap;
+    vertical-align  : middle;
+    border-left     : 1px solid var(--color_light);
+}
+
+/* headers */
+th {
+    white-space     : nowrap;
+    color           : var(--color_header);
+    background-color: var(--color_main);
+    border-left     : 2px solid var(--color_light);
+    cursor: pointer;
+}
+
+th:active {
+    color: var(--color_main);
+    background-color: var(--color_middle);
+}
+
+.hidden_data tr:nth-child(1) ~ tr:not(:last-child) {
+    display:none;
+}
+
+.hidden_header th {
+    display:none;
+}
+
+/*table tr:last-child {
+    opacity: 0.2;
+}*/
+
+/* alternating rows */
+/*tr:nth-child(even) {
+    color           : var(--color_row);
+    background-color: var(--color_lighter);
+}
+
+tr:nth-child(odd) {
+    color           : var(--color_row);
+    background-color: var(--color_light);
+}
+*/
+
+/* alternating columns */
+/*td:nth-child(odd) {
+    color           : #ddd;
+}
+*/
+
+/*tr:hover {
+    color           : var(--color_main);
+    background-color: var(--color_middle);
+}*/
+
+tr {
+
+}
+
+tr:hover {
+    color: #fff;
+    background-color: rgba(255,0,0,0.4);
+    outline : 1px solid red;
+}
+
+/*html { overflow-y: hidden; }
+*/
+
+.table_scrollable_container {
+    box-sizing : border-box;
+    overflow-x : auto;
+}
+
+.table_container {
+    /*box-sizing      : border-box;*/
+    /*overflow-x      : auto;*/
+}
+
+#config {
+    position        : fixed !important; /*important for ios*/
+
+    width           : 300;
+    height          : auto;
+    overflow        : hidden;
+    border          : 0px solid white;
+    opacity         : 1.0;
+    font-size       : 16;
+    background      : black;
+    color           : white;
+    border-radius   : 0px;
+    z-index         : 99999;
+    right           : 10;
+    top             : 90;
+    margin          : 0;
+    padding         : 10;
+    min-height      : 44;
+    border-radius   : 0px;
+}
+
+#config.minimized {
+    height: 0;
+    margin: 0;
+    padding: 0;
+    background: none;
+}
+
+#config label {
+    border: 1px solid #123;
+    height: 44;
+    margin: 0;
+    padding: 13;
+    box-sizing : border-box;
+}
+
+#config_minimize {
+    border: 1px solid #123;
+    background-color: #456;
+    color:#00ffb9; 
+    outline:none; 
+    font-size: 20;
+    vertical-align: top;
+    width: 44;
+    height: 44;
+    position: absolute;
+    right: 0;
+    top: 0;
+    padding: 0;
+    margin: 10;
+}
+
+#config_minimize.minimized {
+    right: 0;
+    top: 0;
+    padding: 0;
+    margin: 0;
+}
+
+#config_string {
+    padding-top: 8;
+    font-size: 12;
+}
+
+
+</style>
+
+<script>
+
+
+function klik_min_max(event=null) {
+    tog_class(config, 'minimized'); 
+    tog_class(config_minimize, 'minimized'); 
+    if (event) {
+        event.target.innerHTML = (event.target.innerHTML=='+') ? '-' : '+';
+    }
+}
+
+
+function klik_table_search_all() {
+    klik_table_search('table_locations_0');
+    klik_table_search('table_attendees_0');
+    klik_table_search('table_maps_0');
+
+    klik_table_search('table_infrastructures_attendees_0');
+    klik_table_search('table_infrastructures_beacons_0');
+    klik_table_search('table_infrastructures_configs_0');
+    klik_table_search('table_infrastructures_hubs_0');
+    klik_table_search('table_infrastructures_sentinelles_0');
+    klik_table_search('table_infrastructures_registrations_0');
+    klik_table_search('table_infrastructures_tags_0');
+    klik_table_search('table_infrastructures_touchpoints_0');
+    klik_table_search('table_infrastructures_pixels_0');
+    klik_table_search('table_infrastructures_mobiles_0');
+}
+
+
+function klik_table_search(table_id) {
+
+    // Declare variables 
+    var input, filter, table, tr, td, i;
+
+    input = by_id("klik_search");
+    filter = input.value.toUpperCase();
+
+    table = by_id(table_id);
+    tr = table.getElementsByTagName("tr");
+
+    // Loop through all table rows, and hide those who don't match the search query
+    var got_at_least_one = false;
+    for (i = 1; i < tr.length; i++) {
+        var cols = tr[i].getElementsByTagName("td");
+        tr[i].style.display = 'none';
+        for (j = 0; j < cols.length; j++) { // loop all column items
+            td = cols[j];
+            if (td && td.innerHTML.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = ''; // got one
+                got_at_least_one = true;
+                continue;
+            } 
+        } 
+    }
+
+    var section = table.parentElement.parentElement;
+    if (got_at_least_one) {
+        section.style.display = 'block';
+    }
+    else {
+        section.style.display = 'none';
+    }
+
+}
+</script>
+
+</head>
+
+<body class="klik_app theme_klik">
+    <input type="text" id='klik_search' onkeyup="klik_table_search_all()" placeholder="type here to search all tables">
+    
+    <div style="padding-top:30;">
+
+        <div class="klik_section draggable" id='section_maps' hidden>
+            <label id="label_maps">did not get maps<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_maps_0"></div>
+                <div class="table_container" id="table_maps_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_beacons' hidden>
+            <label id="label_infrastructures_beacons">did not get infra beacons<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_beacons_0"></div>
+                <div class="table_container" id="table_infrastructures_beacons_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_locations' hidden>
+            <label id="label_locations">did not get locations<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_locations_0"></div>
+                <div class="table_container" id="table_locations_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_touchpoints' hidden>
+            <label id="label_infrastructures_touchpoints" >did not get infra tags<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_touchpoints_0"></div>
+                <div class="table_container" id="table_infrastructures_touchpoints_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_tags' hidden>
+            <label id="label_infrastructures_tags" >did not get infra tags<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_tags_0"></div>
+                <div class="table_container" id="table_infrastructures_tags_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_configs' hidden>
+            <label id="label_infrastructures_configs">did not get infra configs<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_configs_0"></div>
+                <div class="table_container" id="table_infrastructures_configs_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_hubs' hidden>
+            <label id="label_infrastructures_hubs">did not get infra hubs<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_hubs_0"></div>
+                <div class="table_container" id="table_infrastructures_hubs_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_mobiles' hidden>
+            <label id="label_infrastructures_mobiles">did not get infra mobiles<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_mobiles_0"></div>
+                <div class="table_container" id="table_infrastructures_mobiles_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_pixels' hidden>
+            <label id="label_infrastructures_pixels">did not get infra pixels<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_pixels_0"></div>
+                <div class="table_container" id="table_infrastructures_pixels_1"></div>
+            </div>
+        </div>
+
+         <div class="klik_section draggable" id='section_infrastructures_registrations' hidden>
+            <label id="label_infrastructures_registrations">did not get infra registrations<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_registrations_0"></div>
+                <div class="table_container" id="table_infrastructures_registrations_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_sentinelles' hidden>
+            <label id="label_infrastructures_sentinelles">did not get infra sentinelles<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_sentinelles_0"></div>
+                <div class="table_container" id="table_infrastructures_sentinelles_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_infrastructures_attendees' hidden>
+            <label id="label_infrastructures_attendees">did not get infra attendees<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_infrastructures_attendees_0"></div>
+                <div class="table_container" id="table_infrastructures_attendees_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section draggable" id='section_attendees' hidden>
+            <label id="label_attendees">did not get attendees<button hidden onclick="klik_min_max(event)">-</button></label>
+            <div class="table_scrollable_container">
+                <div class="table_container" id="table_attendees_0"></div>
+                <div class="table_container" id="table_attendees_1"></div>
+            </div>
+        </div>
+
+        <div class="klik_section">
+        </div>
+
+    </div>
+
+    <!-- <div class="klik_section draggable" id="config" style='display:none; opacity:0.85;'> -->
+     <div class="klik_section always-draggable" id="config" style='opacity:1.0;'>
+        <label>JSON</label>
+        <button onclick="klik_min_max(event)" id="config_minimize">+</button>
+        <div id="config_string"></div>
+    </div>
+
+</body>
+</html>
