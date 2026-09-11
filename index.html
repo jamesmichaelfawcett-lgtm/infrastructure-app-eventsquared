@@ -139,10 +139,19 @@
     font-size: 10.5px; color: #445655;
     padding: 0 2px;
   }
+
+  #klik_status_bar_patch {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: env(safe-area-inset-top);
+    background: var(--floor);
+    z-index: 999999;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
 
+  <div id="klik_status_bar_patch"></div>
   <div class="rack">
 
     <div class="rack-head">
