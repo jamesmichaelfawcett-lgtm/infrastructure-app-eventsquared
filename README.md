@@ -101,6 +101,37 @@ two minutes.
   device visually appears to move it even though nothing saves, that's a
   cosmetic side-effect worth telling me about, not a data-safety issue.
 
+## What changed in this update
+
+- **Header icons no longer clipped.** Root cause: the toolbar sat at the
+  very top edge (`top: 0`), and the status-bar patch from the last update
+  — now correctly sized — was rendering on top of it at a higher layer,
+  covering the top portion of the toolbar's icons. The toolbar now starts
+  below the safe area instead of behind the patch, and page content shifts
+  down to match.
+- **Pinch-to-zoom fixed at the actual root cause.** This is 2019-era code
+  that decides whether to listen for touch or mouse input by checking if
+  the browser's ID string contains "iPad". Apple changed iPadOS Safari's
+  default identification to look like desktop Mac Safari back in iOS 13,
+  so that check has been silently failing on every modern iPad — the app's
+  touch handlers (including pinch) were simply never being attached; mouse
+  listeners were attached instead. Fixed with the standard modern check
+  (Mac-reporting platform + actual touch support = a real iPad).
+- **Map no longer starts fully zoomed in.** All of an event's maps live on
+  one shared canvas, positioned side by side — the "only shows one map,
+  can't switch" symptom was really the same touch bug: you were zoomed to
+  100% on a corner of map #1 with no way to pinch out and pan to the
+  others. With pinch/pan working again, the initial view now also
+  calculates a proper fit-to-screen zoom instead of jumping straight to
+  100% scale, so the first map you land on is visible in full immediately.
+- **Load time:** the Map page is inherently the heaviest of the three (it's
+  the original app's full canvas engine, ~6,200 lines plus ~13 extra
+  support files) — I've made sure all of those extra files are in the
+  service worker's precache list too, so a second visit should be
+  meaningfully faster. First-visit load time is bounded by how many files
+  have to come over the network at all, which I can't reduce further
+  without trimming the engine itself.
+
 ## Cache versioning — important for future updates
 
 Because the app shell is now cached aggressively for speed, any future
@@ -108,7 +139,7 @@ change to files in `lib/` or `app/` won't show up on the iPad until the
 version string at the top of `sw.js` is bumped:
 
 ```js
-const CACHE_NAME = 'klik-tech-shell-v3';
+const CACHE_NAME = 'klik-tech-shell-v4';
 ```
 
 Bump the number, redeploy, and reload once on the iPad to pick it up. I'll

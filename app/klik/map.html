@@ -1027,13 +1027,24 @@ application.ui.set_zoom_level = function() {
 
         var map_id  = 0;  // centering on map 0
         if (maps[map_id]) {
+            var m = maps[map_id];
+            var map_w = (m.right - m.left) || 1;
+            var map_h = (m.bottom - m.top) || 1;
+
+            // fit the whole map on screen with a little breathing room,
+            // instead of always starting at 100% scale — for a large floor
+            // plan image, 100% only shows a small corner of it
+            var fit_margin = 0.85;
+            var fit_scale = Math.min(window.innerWidth / map_w, window.innerHeight / map_h) * fit_margin;
+            fit_scale = Math.max(SCALE_MIN, Math.min(fit_scale, 1.0));
+
             var center          = [window.innerWidth/2, window.innerHeight/2];
             var center_img      = [maps[map_id].x, maps[map_id].y];
             var center_offset   = [center[0]-center_img[0], center[1]-center_img[1]];
 
             viewports[0].reset();
             viewports[0].translate(center_offset[0], 50);
-            viewports[0].zoom(1.0, center);    
+            viewports[0].zoom(fit_scale, center);    
         }
     }
 }
