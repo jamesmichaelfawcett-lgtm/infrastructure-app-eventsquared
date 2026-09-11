@@ -821,3 +821,50 @@ body.ios {
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
 }
+
+
+/* offline banner (added for the PWA build) */
+#klik_offline_banner {
+    position: fixed;
+    top: env(safe-area-inset-top);
+    left: 0;
+    right: 0;
+    z-index: 999998;
+    background: #3a2a00;
+    color: #ffab2e;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 12.5px;
+    letter-spacing: 0.01em;
+    text-align: center;
+    padding: 7px 10px;
+    transform: translateY(-150%);
+    transition: transform 0.25s ease;
+    pointer-events: none;
+}
+#klik_offline_banner.visible {
+    transform: translateY(0);
+}
+
+
+/* read-only toast, shown when a blocked write is attempted (Map page) */
+#klik_readonly_toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(20px);
+    z-index: 999998;
+    background: #101a1a;
+    border: 1px solid #2a3a39;
+    color: #e7efee;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+#klik_readonly_toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}

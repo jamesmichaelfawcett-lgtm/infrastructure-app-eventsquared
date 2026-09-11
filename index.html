@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height">
+<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, viewport-fit=cover">
 <title>Klik Tech</title>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -29,6 +29,7 @@
     --floor:      #0b1212;
     --cyan:       #00e6c3;
     --amber:      #ffab2e;
+    --violet:     #9b8cff;
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -67,11 +68,8 @@
 
   .bay {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
-  }
-  @media (max-width: 620px) {
-    .bay { grid-template-columns: 1fr; }
   }
 
   .module {
@@ -131,6 +129,7 @@
 
   .monitor   { --accent: var(--cyan); }
   .sequencer { --accent: var(--amber); }
+  .map       { --accent: var(--violet); }
 
   footer {
     margin-top: 26px; width: 100%; max-width: 780px;
@@ -178,6 +177,16 @@
         </div>
         <h2>Sequencer</h2>
         <p>Build and run lightshow cues across the connected rig.</p>
+        <span class="go">open &#8250;</span>
+      </a>
+
+      <a class="module map on" href="./app/klik/map.html">
+        <div class="row-top">
+          <span class="chan">CH.03</span>
+          <span class="led"></span>
+        </div>
+        <h2>Map</h2>
+        <p>Pinch-to-zoom view of every map, tag and hub. View only.</p>
         <span class="go">open &#8250;</span>
       </a>
 

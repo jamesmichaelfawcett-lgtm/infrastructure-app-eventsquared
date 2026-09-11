@@ -69,6 +69,51 @@ two minutes.
 4. Launch it from the home screen icon — it opens full-screen, no browser
    chrome, like a native app.
 
+## What changed in this update
+
+- **Credentials now survive wifi drops.** A network failure no longer wipes
+  your stored login and forces a re-prompt — only a genuine bad-password
+  response does that. A dropped connection shows a small "Offline — showing
+  last known data" banner and reconnects automatically once back online.
+- **Status bar fixed at the actual source.** The page was missing
+  `viewport-fit=cover` in its viewport meta tag, which silently made every
+  `env(safe-area-inset-top)` value resolve to zero — so the solid black
+  patch from the last update existed but had no height. Fixed in
+  `klik_app.js` itself, so it's correct on every page automatically.
+- **Faster loading.** The service worker now precaches every JS/CSS file
+  the app needs (~95 files) instead of a handful, so a second visit loads
+  the whole app from the iPad's local storage rather than over the network.
+- **Local data caching.** Event data (infrastructure, tags, etc.) is cached
+  per-namespace to `localStorage`. On load, the last known data paints
+  instantly while the real fetch happens underneath — the fresh result
+  always overwrites it the moment it arrives, so you're never looking at
+  stale data pretending to be current, just not a blank screen while
+  waiting.
+- **New: Map.** A third page, reusing the original app's Manager tool —
+  which already has a real, working pinch-to-zoom canvas map with live
+  tags and hubs. It's locked to **view-only**: every write method in
+  `klik_api.js` (`set`/`add`/`delete`/pairing) checks a `KLIK_READ_ONLY`
+  flag set at the top of `map.html` and refuses to contact the server if
+  it's on — regardless of what button or drag gesture tries to trigger it.
+  If something in the UI attempts a change, a small toast says so instead
+  of silently doing nothing. I haven't been able to visually test this
+  page (no browser available in my build environment) — if dragging a
+  device visually appears to move it even though nothing saves, that's a
+  cosmetic side-effect worth telling me about, not a data-safety issue.
+
+## Cache versioning — important for future updates
+
+Because the app shell is now cached aggressively for speed, any future
+change to files in `lib/` or `app/` won't show up on the iPad until the
+version string at the top of `sw.js` is bumped:
+
+```js
+const CACHE_NAME = 'klik-tech-shell-v3';
+```
+
+Bump the number, redeploy, and reload once on the iPad to pick it up. I'll
+handle this automatically whenever I make further changes.
+
 ## Notes
 
 - **Login persists** across Monitor and Sequencer via browser storage on the
