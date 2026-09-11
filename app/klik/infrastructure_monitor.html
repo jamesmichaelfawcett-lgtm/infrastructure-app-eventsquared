@@ -3,7 +3,32 @@
 <head>
 <meta charset='utf-8'>
 <link rel='stylesheet' href='../../lib/klik_app.css' >
+<style>
+  #klik_loading_overlay {
+    position: fixed; inset: 0; z-index: 99999;
+    display: flex; align-items: center; justify-content: center;
+    background: #0b1212;
+    transition: opacity 0.25s ease;
+  }
+  #klik_loading_overlay.klik_loading_hidden { opacity: 0; pointer-events: none; }
+  .klik_loading_panel { width: 240px; text-align: center; }
+  .klik_loading_led {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #00e6c3; margin: 0 auto 18px;
+    box-shadow: 0 0 10px #00e6c3;
+    animation: klik_loading_pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes klik_loading_pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .klik_loading_label {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 12.5px; letter-spacing: 0.02em; color: #7c9291;
+    margin-bottom: 14px;
+  }
+  .klik_loading_track { height: 3px; width: 100%; background: #1d2b2a; border-radius: 2px; overflow: hidden; }
+  .klik_loading_bar { height: 100%; width: 4%; background: #00e6c3; transition: width 0.2s ease; }
+</style>
 <script type='text/javascript' src='../../lib/klik_app.js'></script>
+<script type='text/javascript' src='../../lib/klik_loading.js'></script>
 <script type='text/javascript'>
 
 const BATTERY_LEVEL_HIGH = 90; // higher than this value will be solid green
@@ -1398,6 +1423,13 @@ function klik_table_search(table_id) {
 </head>
 
 <body class="klik_app theme_klik">
+<div id="klik_loading_overlay" class="klik_loading_overlay">
+  <div class="klik_loading_panel">
+    <div class="klik_loading_led"></div>
+    <div class="klik_loading_label" id="klik_loading_label">Starting up</div>
+    <div class="klik_loading_track"><div class="klik_loading_bar" id="klik_loading_bar"></div></div>
+  </div>
+</div>
     <input type="text" id='klik_search' onkeyup="klik_table_search_all()" placeholder="type here to search all tables">
     
     <div style="padding-top:30;">
