@@ -26,6 +26,17 @@
   }
   .klik_loading_track { height: 3px; width: 100%; background: #1d2b2a; border-radius: 2px; overflow: hidden; }
   .klik_loading_bar { height: 100%; width: 4%; background: #00e6c3; transition: width 0.2s ease; }
+
+  /* solid strip behind the iPad's status bar (clock/wifi/battery) —
+     without this, the toolbar's translucent background lets scrolling
+     content show through that strip */
+  #klik_status_bar_patch {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: env(safe-area-inset-top);
+    background: #000;
+    z-index: 999999;
+    pointer-events: none;
+  }
 </style>
 <script type='text/javascript' src='../../lib/klik_app.js'></script>
 <script type='text/javascript' src='../../lib/klik_loading.js'></script>
@@ -1423,6 +1434,7 @@ function klik_table_search(table_id) {
 </head>
 
 <body class="klik_app theme_klik">
+<div id="klik_status_bar_patch"></div>
 <div id="klik_loading_overlay" class="klik_loading_overlay">
   <div class="klik_loading_panel">
     <div class="klik_loading_led"></div>
