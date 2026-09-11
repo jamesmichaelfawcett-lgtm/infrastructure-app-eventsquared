@@ -1,0 +1,125 @@
+<!-- by JSR <jsr@pixmob.com -->
+<html>
+<head>
+<meta charset='utf-8'>
+<link rel='stylesheet' href='../../lib/klik_app.css' >
+<script type='text/javascript' src='../../lib/klik_app.js'></script>
+<script type='text/javascript'>
+
+
+window.onload = function() {
+    app = new KlikApp('tech', 'Lightshow Sequencer', 'klik', true, true ); // settings, debug
+
+    app.callbacks = {
+        on_ws_open : function() {
+            klik_send_off_state();
+        },
+        
+        on_ws_message : function(data) {
+
+        },
+
+        on_config_loaded : function(data) {
+            sequencer.on_config_loaded(data);
+        },
+
+        on_config_missing : function(init_ui=true) {
+            sequencer.on_config_missing(init_ui);
+        },
+
+        on_app_ready : function() { 
+
+            priority = new KlikPriority({
+                on_priority_change : function(value) {
+                    sequencer.set_priority(value);
+                }
+            });
+
+
+            rssi = new KlikRssi({ 
+                min : 0, 
+                max : 120, 
+                value : 120, 
+                on_rssi_change : function(value) {
+                    sequencer.set_rssi(value, true);
+                }
+            });
+
+
+            interface = new KlikInterface({
+                on_interface_change : function(value) {
+                    if (value=='REMOTE') {
+                        app.api.get_all_infrastructures();
+                    } 
+                    sequencer.set_interface(value);
+                },
+                on_hubs_change : function(status, value) {
+                    sequencer.set_hubs(status, value);
+                },
+            });
+
+
+            dimmer = new KlikDimmer({
+                min : 0,
+                max : 100,
+                inc : 10,
+                value : 100,
+                on_dimmer_change_percent : function(value) {
+                    sequencer.set_dimmer(value);
+                }
+            });
+
+            
+
+            sequencer = new KlikSequencer({
+                on_hubs_change : function(status, value) {
+
+                    switch (status) {
+                        case 'user': 
+                        case 'online':
+                        case 'offline': 
+                        case 'unassigned': 
+                            interface.set_targets(status, value); 
+                            break;
+
+                        default:
+                            self.cout('unable to change hubs');
+                    }
+                }, 
+
+                references : {
+                    ui_priority  : priority,
+                    ui_interface : interface,
+                    ui_dimmer    : dimmer,
+                    ui_rssi      : rssi,
+                }
+
+            });
+
+            // load default configs
+            // app.load_config();
+
+            // allow older versions (will load the first one found)
+            app.load_config(true, ['0.9.3', '0.9.2', '0.9.1', '0.9.0', '0.8.36', '0.8.35', '0.8.34']); 
+
+
+            // get hubs that are on the map
+            app.api.get_all_infrastructures();
+
+        },
+
+        on_app_data(namespace, data) {
+            sequencer.on_app_data(namespace, data);
+        },
+
+    }
+}
+
+
+function on_modal_open(event) {
+    sequencer.on_modal_open(event);
+}
+
+</script>
+</head>
+</html>
