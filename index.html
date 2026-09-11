@@ -14,94 +14,172 @@
 <meta name="apple-touch-fullscreen" content="yes">
 <link rel="apple-touch-icon" href="./icons/icon-180.png">
 <link rel="icon" href="./icons/icon-32.png">
-<meta name="theme-color" content="#222222">
+<meta name="theme-color" content="#0b1212">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
   :root {
-    --color_main: rgba(0, 240, 200, 1.0);
-    --color_light: #456;
-    --color_middle: #234;
-    --color_dark: #123;
-    --color_background: #1a1e1e;
+    --ink:        #e7efee;
+    --ink-dim:    #7c9291;
+    --panel:      #101a1a;
+    --panel-edge: #1d2b2a;
+    --floor:      #0b1212;
+    --cyan:       #00e6c3;
+    --amber:      #ffab2e;
   }
+
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
   html, body {
-    margin: 0; padding: 0; height: 100%;
-    background: var(--color_background);
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--floor);
+    background-image:
+      radial-gradient(ellipse 900px 500px at 50% -10%, rgba(0,230,195,0.07), transparent 60%);
+    color: var(--ink);
     font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
-    color: #eee;
+    -webkit-font-smoothing: antialiased;
   }
+
   body {
+    min-height: 100vh;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+    padding: max(28px, env(safe-area-inset-top)) 22px max(28px, env(safe-area-inset-bottom));
+    opacity: 0;
+    animation: rise 0.5s ease-out forwards;
   }
-  .brand { text-align: center; margin-bottom: 40px; }
-  .brand .mark {
-    width: 64px; height: 64px; border-radius: 16px;
-    margin: 0 auto 14px;
-    background: radial-gradient(circle at 30% 30%, var(--color_main), var(--color_dark));
-    box-shadow: 0 0 24px rgba(0,240,200,0.35);
-  }
-  .brand h1 { font-size: 20px; letter-spacing: 0.04em; margin: 0; font-weight: 600; color: #fff; }
-  .brand p { margin: 6px 0 0; font-size: 13px; color: #789; letter-spacing: 0.03em; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) { body { animation: none; opacity: 1; } }
 
-  .tiles { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
-  .tile {
-    display: flex; align-items: center; gap: 16px;
-    padding: 18px 20px; border-radius: 14px;
-    background: linear-gradient(180deg, var(--color_middle), var(--color_dark));
-    border: 1px solid rgba(0,240,200,0.15);
-    text-decoration: none; color: #fff;
-    transition: transform 0.15s ease, border-color 0.15s ease;
-  }
-  .tile:active { transform: scale(0.97); border-color: var(--color_main); }
-  .tile .icon {
-    width: 40px; height: 40px; flex: none; border-radius: 10px;
-    background: rgba(0,240,200,0.12);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--color_main); font-size: 18px; font-weight: 700;
-  }
-  .tile .label { font-size: 16px; font-weight: 600; }
-  .tile .desc { font-size: 12.5px; color: #8fa; opacity: 0.65; margin-top: 2px; }
-  .tile .text { display: flex; flex-direction: column; }
+  .rack { width: 100%; max-width: 780px; }
 
-  footer { margin-top: 36px; font-size: 11px; color: #567; text-align: center; }
+  .rack-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 0 2px 18px; margin-bottom: 22px;
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  .rack-head .name { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 0.01em; }
+  .rack-head .name b { color: var(--cyan); font-weight: 700; }
+  .rack-head .tag { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-dim); }
+
+  .bay {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 620px) {
+    .bay { grid-template-columns: 1fr; }
+  }
+
+  .module {
+    position: relative;
+    display: block;
+    text-decoration: none;
+    color: var(--ink);
+    background: linear-gradient(155deg, var(--panel) 0%, #0d1616 100%);
+    border: 1px solid var(--panel-edge);
+    border-radius: 6px;
+    padding: 26px 24px 22px;
+    min-height: 190px;
+    overflow: hidden;
+    transition: border-color 0.15s ease, transform 0.1s ease;
+  }
+  .module::before {
+    content: "";
+    position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
+    background: var(--accent);
+  }
+  .module:active { transform: scale(0.985); }
+  .module.on { border-color: color-mix(in srgb, var(--accent) 40%, var(--panel-edge)); }
+
+  .module .row-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .module .chan {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px; color: var(--ink-dim);
+    letter-spacing: 0.02em;
+  }
+  .module .led {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) { .module .led { animation: none; } }
+
+  .module h2 {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 600; font-size: 30px; line-height: 1.05;
+    margin: 22px 0 8px;
+    color: #fff;
+  }
+  .module p {
+    margin: 0; font-size: 13.5px; line-height: 1.5;
+    color: var(--ink-dim); max-width: 30ch;
+  }
+  .module .go {
+    position: absolute; right: 22px; bottom: 20px;
+    font-family: "IBM Plex Mono", monospace; font-size: 11px;
+    color: var(--accent);
+    opacity: 0.9;
+  }
+
+  .monitor   { --accent: var(--cyan); }
+  .sequencer { --accent: var(--amber); }
+
+  footer {
+    margin-top: 26px; width: 100%; max-width: 780px;
+    display: flex; justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px; color: #445655;
+    padding: 0 2px;
+  }
 </style>
 </head>
 <body>
 
-  <div class="brand">
-    <div class="mark"></div>
-    <h1>KLIK TECH</h1>
-    <p>Infrastructure &middot; Live Event Tracking</p>
-  </div>
+  <div class="rack">
 
-  <div class="tiles">
-    <a class="tile" href="./app/klik/infrastructure_monitor.html">
-      <div class="icon">M</div>
-      <div class="text">
-        <span class="label">Monitor</span>
-        <span class="desc">Live status of connected infrastructure</span>
-      </div>
-    </a>
-    <a class="tile" href="./app/klik/infrastructure_manager.html">
-      <div class="icon">A</div>
-      <div class="text">
-        <span class="label">Manager</span>
-        <span class="desc">Configure and manage infrastructure</span>
-      </div>
-    </a>
-    <a class="tile" href="./app/klik/infrastructure_explorer.html">
-      <div class="icon">E</div>
-      <div class="text">
-        <span class="label">Explorer</span>
-        <span class="desc">Browse maps, bridges, locations, attendees</span>
-      </div>
-    </a>
-  </div>
+    <div class="rack-head">
+      <div class="name"><b>Klik</b> Tech</div>
+      <div class="tag">on-site console</div>
+    </div>
 
-  <footer>v0.9.4 &middot; PWA build</footer>
+    <div class="bay">
+
+      <a class="module monitor on" href="./app/klik/infrastructure_monitor.html">
+        <div class="row-top">
+          <span class="chan">CH.01</span>
+          <span class="led"></span>
+        </div>
+        <h2>Monitor</h2>
+        <p>Live status of every piece of infrastructure connected to this event.</p>
+        <span class="go">open &#8250;</span>
+      </a>
+
+      <a class="module sequencer on" href="./app/klik/lightshow_sequencer.html">
+        <div class="row-top">
+          <span class="chan">CH.02</span>
+          <span class="led"></span>
+        </div>
+        <h2>Sequencer</h2>
+        <p>Build and run lightshow cues across the connected rig.</p>
+        <span class="go">open &#8250;</span>
+      </a>
+
+    </div>
+
+    <footer>
+      <span>build 0.9.4</span>
+      <span>eventsquared</span>
+    </footer>
+
+  </div>
 
 <script>
   if ('serviceWorker' in navigator) {

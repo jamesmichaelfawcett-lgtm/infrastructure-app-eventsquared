@@ -1,7 +1,7 @@
 # Klik Tech — PWA build
 
 A trimmed-down, installable version of the Klik Tech desktop app, containing
-just the infrastructure pages: **Monitor**, **Manager**, **Explorer**.
+**Monitor** (infrastructure status) and **Sequencer** (lightshow cues).
 
 It's the exact same HTML/CSS/JS the desktop app uses (pulled straight from
 the `.app` bundle) — nothing was rewritten. It logs into `api.klik.co` the
@@ -71,17 +71,17 @@ two minutes.
 
 ## Notes
 
-- **Login persists** across the three pages (Monitor/Manager/Explorer) via
-  browser storage on the same origin — you won't have to log in on each one.
+- **Login persists** across Monitor and Sequencer via browser storage on the
+  same origin — you won't have to log in on each one.
 - You'll see a harmless failed connection attempt in the console to
   `ws://127.0.0.1:9000` on load — that's leftover code from the old
   desktop/local-hub setup, trying to reach a local Bluetooth bridge that
   doesn't exist in a browser context. It fails silently and doesn't affect
   anything; the actual infrastructure data comes from the `api.klik.co`
   REST API, not this socket.
-- If you later want the lightshow/sequencer or access-control pages too,
-  they live in the original zip under
-  `Klik Tech/Contents/Resources/html/app/klik/` — copy them into
-  `app/klik/` here the same way these three were, and add a tile for them
-  in `index.html`.
+- If you later want the manager/explorer or access-control pages too, they
+  live in the original zip under `Klik Tech/Contents/Resources/html/app/klik/`
+  — copy them into `app/klik/` here the same way these were, and add a
+  module tile for them in `index.html` (copy one of the existing
+  `<a class="module ...">` blocks and give it its own accent color).
 - Icons were generated from the app's own `AppIcon.icns`.
