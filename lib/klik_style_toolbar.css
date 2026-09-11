@@ -286,7 +286,9 @@
 .klik_toolbar_icon.refresh {
     content: url('img/outline/refresh.png');
     position: absolute;
-    left: 50;
+    right: 5; /* was left: 50 — identical to .home, so it painted directly
+        on top of the home button (added later in the DOM, so it also won.
+        Own home ate both the visuals and the clicks) */
     display:block;
 }
 

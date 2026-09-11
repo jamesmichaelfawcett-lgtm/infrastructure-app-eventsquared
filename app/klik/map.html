@@ -34,6 +34,53 @@
     z-index: 999999;
     pointer-events: none;
   }
+
+  /* map picker — shown first, before the (heavy) canvas view */
+  #klik_map_list_overlay {
+    position: fixed; inset: 0; z-index: 99998;
+    background: #0b1212;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: calc(66px + env(safe-area-inset-top)) 20px 40px;
+  }
+  #klik_map_list_overlay.klik_map_list_hidden { display: none; }
+  .klik_map_list_panel { width: 100%; max-width: 520px; margin: 0 auto; }
+  .klik_map_list_header {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px; letter-spacing: .04em; color: #7c9291;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+  .klik_map_list_item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; margin-bottom: 10px;
+    background: linear-gradient(155deg,#101a1a,#0d1616);
+    border: 1px solid #1d2b2a; border-radius: 8px;
+    color: #e7efee; font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px; font-weight: 600;
+  }
+  .klik_map_list_item .go { color: #9b8cff; font-size: 13px; font-weight: 500; }
+  .klik_map_list_item:active { border-color: #9b8cff; }
+  .klik_map_list_empty {
+    color: #7c9291; font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px; text-align: center; padding: 40px 0;
+  }
+
+  /* thin strip below the toolbar, only shown once a map is open */
+  #klik_map_back_button {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 50px);
+    left: 0; right: 0;
+    z-index: 99996;
+    text-align: center;
+    padding: 9px 0;
+    background: rgba(16,26,26,0.92);
+    border-bottom: 1px solid #1d2b2a;
+    color: #9b8cff;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px; font-weight: 600;
+    display: none;
+  }
+  #klik_map_back_button.visible { display: block; }
 </style>
 <script type='text/javascript' src='../../lib/klik_app.js'></script>
 <script type='text/javascript' src='../../lib/klik_loading.js'></script>
@@ -44,6 +91,83 @@
 // klik_api.js (set/add/delete/pair) checks this flag and refuses to touch
 // the server, no matter what UI path tries to trigger it.
 window.KLIK_READ_ONLY = true;
+
+
+// --- map picker (PWA build) ------------------------------------------
+// Rendering every map's devices every frame regardless of which one is
+// on screen is what was bringing the iPad to a standstill. This shows a
+// simple list first; selecting one sets KLIK_MAP_FILTER_ID (read by
+// klik_map_drawing.js) so only that map's content is drawn and animated.
+
+function klik_map_render_list() {
+    var container = document.getElementById('klik_map_list_items');
+    if (!container) { return; }
+    container.innerHTML = '';
+
+    if (maps.length===0) {
+        container.innerHTML = '<div class="klik_map_list_empty">No maps found for this event</div>';
+    }
+    else {
+        for (var i=0; i<maps.length; i++) {
+            (function(m) {
+                var row = document.createElement('div');
+                row.className = 'klik_map_list_item';
+                row.innerHTML = '<span>' + (m.name || 'Untitled map') + '</span><span class="go">open &#8250;</span>';
+                row.onclick = function() { klik_map_select(m.id); };
+                container.appendChild(row);
+            })(maps[i]);
+        }
+    }
+
+    // don't yank the user back to the list if they're already looking at
+    // a map and the data just refreshed in the background
+    if (KLIK_MAP_FILTER_ID==null) {
+        klik_map_show_list();
+    }
+}
+
+function klik_map_show_list() {
+    var overlay = document.getElementById('klik_map_list_overlay');
+    if (overlay) { overlay.classList.remove('klik_map_list_hidden'); }
+    var back = document.getElementById('klik_map_back_button');
+    if (back) { back.classList.remove('visible'); }
+}
+
+function klik_map_hide_list() {
+    var overlay = document.getElementById('klik_map_list_overlay');
+    if (overlay) { overlay.classList.add('klik_map_list_hidden'); }
+    var back = document.getElementById('klik_map_back_button');
+    if (back) { back.classList.add('visible'); }
+}
+
+function klik_map_select(map_id) {
+    KLIK_MAP_FILTER_ID = map_id;
+    view = 'map';
+    klik_map_hide_list();
+
+    // map background images finish loading (and set .x/.y/.left/.right)
+    // asynchronously, slightly after the list itself becomes tappable —
+    // wait for that map's geometry specifically before fitting the view,
+    // instead of possibly computing a fit against undefined dimensions
+    var attempts = 0;
+    function try_zoom() {
+        var idx = -1;
+        for (var mi=0; mi<maps.length; mi++) {
+            if (maps[mi].id==map_id) { idx = mi; break; }
+        }
+        var ready = idx>-1 && typeof maps[idx].x==='number' && !isNaN(maps[idx].x);
+        if (ready || attempts>20) {
+            if (application.ui.set_zoom_level) {
+                application.ui.set_zoom_level();
+            }
+        }
+        else {
+            attempts++;
+            setTimeout(try_zoom, 100);
+        }
+    }
+    setTimeout(try_zoom, 30);
+}
 
 
 // debug
@@ -141,6 +265,11 @@ var api         = null;
 var lock        = 0;
 var events      = [];
 var maps        = [];
+
+// PWA build: which single map (by .id) to draw/animate — null means "no
+// filter, draw everything" (the original, slow-on-iPad behaviour). Set by
+// klik_map_select() when the user picks a map from the list overlay.
+var KLIK_MAP_FILTER_ID = null;
 var locations   = [];
 var bridges     = [];
 var backup      = {}; // single level dict to store all devices as they have unique keys
@@ -1025,7 +1154,12 @@ application.ui.set_zoom_level = function() {
     else if (view=='map') {
         $('#searchbar').hide();
 
-        var map_id  = 0;  // centering on map 0
+        var map_id = 0; // fallback: first map
+        if (KLIK_MAP_FILTER_ID!=null) {
+            for (var mi=0; mi<maps.length; mi++) {
+                if (maps[mi].id==KLIK_MAP_FILTER_ID) { map_id = mi; break; }
+            }
+        }
         if (maps[map_id]) {
             var m = maps[map_id];
             var map_w = (m.right - m.left) || 1;
@@ -1947,6 +2081,7 @@ function handle_data(namespace, data) {
                 maps.push(map);
             }
             api.cout('loaded', ':', data.length, 'map(s)');  
+            klik_map_render_list();
             break;
 
 
@@ -5958,6 +6093,13 @@ function test_function(event) {
     <div class="klik_loading_led"></div>
     <div class="klik_loading_label" id="klik_loading_label">Starting up</div>
     <div class="klik_loading_track"><div class="klik_loading_bar" id="klik_loading_bar"></div></div>
+  </div>
+</div>
+<div id="klik_map_back_button" onclick="klik_map_show_list()">&#8249; All maps</div>
+<div id="klik_map_list_overlay" class="klik_map_list_overlay klik_map_list_hidden">
+  <div class="klik_map_list_panel">
+    <div class="klik_map_list_header">Select a map</div>
+    <div id="klik_map_list_items"></div>
   </div>
 </div>
 

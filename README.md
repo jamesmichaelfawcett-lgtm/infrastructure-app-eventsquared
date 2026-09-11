@@ -145,6 +145,22 @@ const CACHE_NAME = 'klik-tech-shell-v4';
 Bump the number, redeploy, and reload once on the iPad to pick it up. I'll
 handle this automatically whenever I make further changes.
 
+## What changed in this update
+
+- **Home/refresh icon collision fixed.** Both icons were absolutely
+  positioned at the exact same spot (a leftover from the original app —
+  not something I introduced). Refresh, being added to the page second,
+  was painting on top of Home and eating its clicks. Moved refresh to the
+  opposite side of the toolbar so both are reachable.
+- **Map page no longer renders every map at once.** Root cause: every
+  frame was drawing and animating *all* maps and *all* their tags/hubs
+  regardless of which one was on screen — for an event with a meaningful
+  number of devices, that's exactly what was bringing it to a standstill.
+  The map now opens to a **list of maps** first; picking one filters
+  drawing and animation down to just that map's content. A small "‹ All
+  maps" strip under the toolbar takes you back to the list to pick
+  another one.
+
 ## Notes
 
 - **Login persists** across Monitor and Sequencer via browser storage on the

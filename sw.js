@@ -9,7 +9,7 @@
 //    to localStorage and repaints instantly with the last known data while
 //    always fetching and displaying the fresh result underneath.
 
-const CACHE_NAME = 'klik-tech-shell-v4';
+const CACHE_NAME = 'klik-tech-shell-v5';
 
 const SHELL_FILES = [
   './',
