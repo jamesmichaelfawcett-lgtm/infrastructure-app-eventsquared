@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height">
+<title>Klik Tech</title>
+
+<link rel="manifest" href="./manifest.webmanifest">
+
+<!-- iOS home screen behaviour -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Klik Tech">
+<meta name="apple-touch-fullscreen" content="yes">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<link rel="icon" href="./icons/icon-32.png">
+<meta name="theme-color" content="#222222">
+
+<style>
+  :root {
+    --color_main: rgba(0, 240, 200, 1.0);
+    --color_light: #456;
+    --color_middle: #234;
+    --color_dark: #123;
+    --color_background: #1a1e1e;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--color_background);
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #eee;
+  }
+  body {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+  }
+  .brand { text-align: center; margin-bottom: 40px; }
+  .brand .mark {
+    width: 64px; height: 64px; border-radius: 16px;
+    margin: 0 auto 14px;
+    background: radial-gradient(circle at 30% 30%, var(--color_main), var(--color_dark));
+    box-shadow: 0 0 24px rgba(0,240,200,0.35);
+  }
+  .brand h1 { font-size: 20px; letter-spacing: 0.04em; margin: 0; font-weight: 600; color: #fff; }
+  .brand p { margin: 6px 0 0; font-size: 13px; color: #789; letter-spacing: 0.03em; }
+
+  .tiles { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
+  .tile {
+    display: flex; align-items: center; gap: 16px;
+    padding: 18px 20px; border-radius: 14px;
+    background: linear-gradient(180deg, var(--color_middle), var(--color_dark));
+    border: 1px solid rgba(0,240,200,0.15);
+    text-decoration: none; color: #fff;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .tile:active { transform: scale(0.97); border-color: var(--color_main); }
+  .tile .icon {
+    width: 40px; height: 40px; flex: none; border-radius: 10px;
+    background: rgba(0,240,200,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--color_main); font-size: 18px; font-weight: 700;
+  }
+  .tile .label { font-size: 16px; font-weight: 600; }
+  .tile .desc { font-size: 12.5px; color: #8fa; opacity: 0.65; margin-top: 2px; }
+  .tile .text { display: flex; flex-direction: column; }
+
+  footer { margin-top: 36px; font-size: 11px; color: #567; text-align: center; }
+</style>
+</head>
+<body>
+
+  <div class="brand">
+    <div class="mark"></div>
+    <h1>KLIK TECH</h1>
+    <p>Infrastructure &middot; Live Event Tracking</p>
+  </div>
+
+  <div class="tiles">
+    <a class="tile" href="./app/klik/infrastructure_monitor.html">
+      <div class="icon">M</div>
+      <div class="text">
+        <span class="label">Monitor</span>
+        <span class="desc">Live status of connected infrastructure</span>
+      </div>
+    </a>
+    <a class="tile" href="./app/klik/infrastructure_manager.html">
+      <div class="icon">A</div>
+      <div class="text">
+        <span class="label">Manager</span>
+        <span class="desc">Configure and manage infrastructure</span>
+      </div>
+    </a>
+    <a class="tile" href="./app/klik/infrastructure_explorer.html">
+      <div class="icon">E</div>
+      <div class="text">
+        <span class="label">Explorer</span>
+        <span class="desc">Browse maps, bridges, locations, attendees</span>
+      </div>
+    </a>
+  </div>
+
+  <footer>v0.9.4 &middot; PWA build</footer>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('./sw.js').catch(function(err) {
+        console.log('service worker registration failed', err);
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
